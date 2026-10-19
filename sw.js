@@ -1,4 +1,4 @@
-const CACHE_NAME = "kas-rt-qr-v1.1.5";
+const CACHE_NAME = "kas-rt-qr-v1.1.6";
 const urlsToCache = [
   "./",
   "./index.html",
@@ -31,7 +31,7 @@ self.addEventListener("activate", event => {
 self.addEventListener("fetch", event => {
   event.respondWith(
     caches.match(event.request).then(response => {
-      return response || fetch(event.request);
+      return response || fetch(event.request).catch(() => caches.match("./index.html"));
     })
   );
 });
