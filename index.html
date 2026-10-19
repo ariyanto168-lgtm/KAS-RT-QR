@@ -1,1 +1,467 @@
 
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kas RT Mobile</title>
+<!-- PWA Manifest & Meta -->
+<link rel="manifest" href="data:application/manifest+json,{
+  &quot;name&quot;: &quot;Kas RT QR&quot;,
+  &quot;short_name&quot;: &quot;KasRT&quot;,
+  &quot;start_url&quot;: &quot;.&quot;,
+  &quot;display&quot;: &quot;standalone&quot;,
+  &quot;background_color&quot;: &quot;#f0f2f5&quot;,
+  &quot;theme_color&quot;: &quot;#2E7D32&quot;,
+  &quot;icons&quot;: [{
+    &quot;src&quot;: &quot;logokasrtqr4.jpg&quot;,
+    &quot;sizes&quot;: &quot;192x192 512x512&quot;,
+    &quot;type&quot;: &quot;image/jpeg&quot;
+  }]
+}">
+<style>
+body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f0f2f5; margin: 0; padding: 15px; }
+.header { text-align: center; color: #2E7D32; margin-bottom: 15px; }
+.header-version { font-size: 11px; color: #666; font-weight: bold; margin-top: 2px; letter-spacing: 1px; }
+.card { background: white; padding: 15px; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 15px; }
+.saldo-box { text-align: center; background: #E3F2FD; border: 1px solid #BBDEFB; }
+h2, h3 { margin: 0 0 10px 0; }
+.saldo-text { font-size: 26px; font-weight: bold; color: #1565C0; margin-top: 5px; }
+.flex-container { display: flex; justify-content: space-between; gap: 10px; }
+.box { flex: 1; text-align: center; padding: 12px; border-radius: 8px; font-size: 14px; }
+.masuk { background: #E8F5E9; color: #2E7D32; border: 1px solid #C8E6C9; }
+.keluar { background: #FFEBEE; color: #C62828; border: 1px solid #FFCDD2; }
+.menu-box { flex: 1; text-align: center; padding: 12px; border-radius: 8px; font-size: 14px; font-weight: bold; cursor: pointer; border: 1px solid; }
+.menu-warga { background: #E3F2FD; color: #1565C0; border-color: #BBDEFB; }
+.menu-laporan { background: #E0F2F1; color: #00695C; border-color: #B2DFDB; }
+.trx-item { border-bottom: 1px solid #eee; padding: 12px 0; font-size: 13px; line-height: 1.4; position: relative; }
+.trx-item:last-child { border-bottom: none; }
+.btn-edit { background: #FF9800; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 11px; font-weight: bold; cursor: pointer; position: absolute; right: 0; top: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 10px; }
+th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+th { background-color: #f5f5f5; color: #333333; }
+.btn-utama { background: #2E7D32; color: white; border: none; padding: 12px; width: 100%; border-radius: 8px; font-size: 15px; font-weight: bold; cursor: pointer; margin-bottom: 15px; }
+.btn-whatsapp { background: #25D366; }
+.btn-excel { background: #1B5E20; }
+.btn-kembali { background: #546E7A; margin-bottom: 15px; }
+.btn-lihat-semua { background: #1565C0; margin-bottom: 15px; }
+label { font-size: 13px; font-weight: bold; color: #555; display: block; margin-top: 10px; margin-bottom: 5px; text-align: left; }
+input, select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-family: inherit; }
+.auth-container { max-width: 300px; margin: 40px auto; text-align: center; }
+.tab-container { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; padding-bottom: 15px; border-bottom: 2px solid #eee; margin-bottom: 15px; }
+.tab-btn { padding: 12px 6px; border-radius: 8px; border: 2px solid transparent; color: white; font-size: 13px; font-weight: bold; cursor: pointer; transition: 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.15); text-align: center; }
+.tab-btn:not(.active) { filter: brightness(0.8); opacity: 0.85; }
+.tab-btn.active { filter: brightness(1.15); transform: scale(1.03); border: 2px solid #222; box-shadow: 0 4px 8px rgba(0,0,0,0.3); z-index: 2; }
+.link-lupa { font-size: 12px; color: #1565C0; cursor: pointer; text-decoration: underline; display: inline-block; margin-bottom: 15px; font-weight: bold; margin-top: 5px; }
+#loaderOverlay { position: fixed; top:0; left:0; width:100%; height: 100%; background: rgba(255,255,255,0.9); z-index: 9999; display: none; justify-content: center; align-items: center; flex-direction: column; }
+.spinner { border: 4px solid #f3f3f3; border-top: 4px solid #2E7D32; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+.app-footer { text-align: center; font-size: 11px; color: #888; margin-top: 15px; font-weight: bold; letter-spacing: 0.5px; }
+/* MODAL */
+#customModalOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; display: none; justify-content: center; align-items: center; padding: 20px; box-sizing: border-box; }
+.custom-modal-box { background: white; width: 100%; max-width: 340px; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.2); overflow: hidden; animation: scaleIn 0.25s ease-out; }
+@keyframes scaleIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+.custom-modal-header { background: #E8F5E9; color: #2E7D32; padding: 15px; font-weight: bold; font-size: 16px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #c8e6c9; }
+.custom-modal-body { padding: 18px; font-size: 14px; color: #333; line-height: 1.5; word-break: break-word; }
+.custom-modal-footer { padding: 12px 18px; background: #f9f9f9; text-align: right; border-top: 1px solid #eee; display: flex; gap: 8px; justify-content: flex-end; }
+.custom-modal-btn { background: #2E7D32; color: white; border: none; padding: 8px 16px; border-radius: 6px; font-size: 13px; font-weight: bold; cursor: pointer; transition: 0.2s; }
+.custom-modal-btn:hover { filter: brightness(0.9); }
+.btn-batal-modal { background: #78909C; }
+</style>
+</head>
+<body>
+
+<!-- MODAL POPUP -->
+<div id="customModalOverlay">
+  <div class="custom-modal-box">
+    <div class="custom-modal-header" id="modalHeaderTitle">Informasi Kas RT</div>
+    <div class="custom-modal-body">
+      <span id="modalBodyMessage">Pesan teks pemberitahuan...</span>
+      <div id="modalInputContainer" style="display:none; margin-top: 15px;">
+        <input type="text" id="modalInputBox" autocomplete="off">
+      </div>
+    </div>
+    <div class="custom-modal-footer">
+      <button class="custom-modal-btn btn-batal-modal" id="modalBtnBatal" style="display:none;" onclick="tutupNotifikasi()">Batal</button>
+      <button class="custom-modal-btn" id="modalBtnAksi" onclick="tutupNotifikasi()">Mengerti</button>
+    </div>
+  </div>
+</div>
+
+<!-- LOADER -->
+<div id="loaderOverlay">
+  <div class="spinner"></div>
+  <p style="margin-top: 15px; font-weight:bold; color: #2E7D32;" id="loaderText">Menyinkronkan Server...</p>
+</div>
+
+<div class="header">
+  <h2 id="judulApp">Kas RT Mobile</h2>
+  <div class="header-version">Versi 1.0.1 Real-Time Cloud</div>
+</div>
+
+<!-- VIEW LOGIN -->
+<div id="viewLogin" class="card auth-container" style="display:block;">
+  <h3 style="color: #555;">Sistem Pengurus RT</h3>
+  <label>Email Pengurus</label>
+  <input type="email" id="inputLoginEmail" placeholder="admin@rt.com" autocomplete="off">
+  <label>PIN Rahasia</label>
+  <input type="password" id="inputLoginPin" placeholder=". ." style="text-align: center; letter-spacing: 5px; font-size: 18px;" autocomplete="off">
+  <div style="text-align: right;"><span class="link-lupa" onclick="tampilLupaPin()">Lupa PIN?</span></div>
+  <button class="btn-utama" onclick="prosesLogin()">Masuk Ke Sistem</button>
+  <div class="app-footer">Powered by Ari GPM</div>
+</div>
+
+<!-- VIEW LUPA PIN -->
+<div id="viewLupaPin" class="card auth-container" style="display:none;">
+  <h3 style="color: #1565C0;">Pemulihan PIN</h3>
+  <input type="email" id="inputLupaEmail" placeholder="Contoh: admin@rt.com" style="margin-bottom: 15px;" autocomplete="off">
+  <button class="btn-utama" style="background: #1565C0;" onclick="kirimOTPLupaPin()">Kirim Kode OTP</button>
+  <button class="btn-utama btn-kembali" onclick="kembaliKeLogin()">Batal</button>
+</div>
+
+<!-- VIEW VERIFIKASI OTP -->
+<div id="viewVerifikasiOTP" class="card auth-container" style="display:none;">
+  <h3 style="color: #FF9800;">Verifikasi & Reset</h3>
+  <label>Kode OTP dari Email</label>
+  <input type="number" id="inputOTP" placeholder="...." style="text-align: center; letter-spacing: 5px; font-size: 18px; margin-bottom: 15px;" autocomplete="off">
+  <label>Buat PIN Baru</label>
+  <input type="password" id="inputPinBaru" placeholder=". ." style="text-align: center; letter-spacing: 5px; font-size: 18px; margin-bottom: 15px;" autocomplete="off">
+  <button class="btn-utama" style="background: #FF9800;" onclick="verifikasiDanResetPIN()">Simpan PIN Baru</button>
+  <button class="btn-utama btn-kembali" onclick="kembaliKeLogin()">Batal</button>
+</div>
+
+<!-- VIEW DASHBOARD -->
+<div id="viewDashboard" style="display:none;">
+  <div style="background: #E8F5E9; padding: 8px 12px; border-radius: 8px; margin-bottom: 12px; font-size: 12px; color: #2E7D32; display: flex; justify-content: space-between; align-items: center;">
+    <span>Akun: <b id="lblAkunAktif">-</b></span>
+    <button onclick="logoutAkun()" style="background: #C62828; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer;">Keluar</button>
+  </div>
+  
+  <div class="flex-container card" style="padding: 10px;">
+    <div class="menu-box menu-warga" onclick="gantiView('warga')">Data Warga</div>
+    <div class="menu-box menu-laporan" onclick="gantiView('laporan')">Laporan Publik</div>
+  </div>
+
+  <div class="flex-container" style="margin-bottom: 15px;">
+    <button class="btn-utama" style="background: #673AB7; margin-bottom: 0;" onclick="bukaScanner()">Scan QR Warga</button>
+    <button class="btn-utama" style="background: #FF9800; margin-bottom: 0;" onclick="bukaScanManual()">Scan Manual Warga</button>
+  </div>
+
+  <button class="btn-utama" onclick="bukaFormTrxBaru()">+ Input Transaksi Baru</button>
+
+  <!-- FORM TRANSAKSI -->
+  <div id="formSection" class="card" style="display: none; border: 2px solid #FF9800; background: #FFF3E0;">
+    <h3 id="judulFormTrx" style="color: #E65100;">Mode Input / Edit Transaksi</h3>
+    <form id="formTrx" onsubmit="submitTransaksi(event)">
+      <input type="hidden" id="barisEdit">
+      <label>Tanggal</label>
+      <input type="date" id="tanggal" required>
+      <div class="flex-container">
+        <div style="flex: 1;"><label>Jenis</label><select id="trxJenis" required><option value="Masuk">Masuk</option><option value="Keluar">Keluar</option></select></div>
+        <div style="flex:1;">
+          <label>Kategori</label>
+          <select id="trxKategori" required>
+            <option value="Iuran Bulanan">Iuran Bulanan</option>
+            <option value="Sosial">Sosial</option>
+            <option value="Kematian">Kematian</option>
+            <option value="Kerja Bakti">Kerja Bakti</option>
+            <option value="Iuran Darurat">Iuran Darurat</option>
+            <option value="Pindah Saldo">Pindah Saldo</option>
+            <option value="Jimpitan">Jimpitan</option>
+          </select>
+        </div>
+      </div>
+      <label>No Rumah / Warga</label><select id="opsiWarga"></select>
+      <label>Uraian Keterangan</label><input type="text" id="trxUraian" required>
+      <label>Nominal (Rp)</label><input type="number" id="trxNominal" required>
+      <button type="submit" class="btn-utama" style="margin-top: 15px; background: #FF9800;" id="btnSimpanTrx">Simpan Perubahan</button>
+      <button type="button" class="btn-utama" style="background: #9e9e9e;" onclick="tutupForm()">Batal</button>
+    </form>
+  </div>
+
+  <div class="card saldo-box">
+    <h3 style="color: #555; font-size: 14px;">Total Saldo Kas</h3>
+    <div class="saldo-text" id="saldoAwal">-</div>
+  </div>
+
+  <div class="flex-container card" style="padding: 10px;">
+    <div class="box masuk"><b>Masuk</b><br><span id="totMasuk">-</span></div>
+    <div class="box keluar"><b>Keluar</b><br><span id="totKeluar">-</span></div>
+  </div>
+
+  <button class="btn-utama btn-lihat-semua" onclick="gantiView('rekapLengkap')">Lihat Rekap Keseluruhan</button>
+
+  <div class="card">
+    <h3>Riwayat Terbaru</h3>
+    <div id="listRiwayatPendek"></div>
+  </div>
+  <div class="app-footer">Powered by Ari GPM</div>
+</div>
+
+<!-- VIEW DATA WARGA, LAPORAN, SCANNER, DLL -->
+<div id="viewWarga" style="display:none;">
+  <button class="btn-utama btn-kembali" onclick="gantiView('dashboard')">Kembali ke Dashboard</button>
+  <div class="card">
+    <h3>Manajemen Data Warga</h3>
+    <button class="btn-utama" onclick="bukaFormTambahWarga()">+ Tambah Warga Baru</button>
+    <div id="tabelWargaContainer"></div>
+  </div>
+</div>
+
+<div id="viewLaporan" style="display:none;">
+  <button class="btn-utama btn-kembali" onclick="gantiView('dashboard')">Kembali ke Dashboard</button>
+  <div class="card">
+    <h3>Laporan Publik & Rekapitulasi</h3>
+    <div id="laporanContainer"></div>
+  </div>
+</div>
+
+<div id="viewScannerQR" style="display:none;">
+  <button class="btn-utama btn-kembali" onclick="gantiView('dashboard')">Kembali ke Dashboard</button>
+  <div class="card" style="text-align: center; padding: 25px 15px;">
+    <h3 style="color:#1565C0; margin-bottom: 20px;">Scan QR Warga</h3>
+    <input type="file" id="qr-input-file" accept="image/*" capture="environment" style="display:none" onchange="scanFileQRSensitive(this)">
+    <button class="btn-utama" style="background: #673AB7; padding: 16px; font-size: 16px;" onclick="document.getElementById('qr-input-file').click()">Ambil Foto / Pilih Gambar QR</button>
+  </div>
+</div>
+
+<div id="viewScanManual" style="display:none;">
+  <button class="btn-utama btn-kembali" onclick="gantiView('dashboard')">Kembali ke Dashboard</button>
+  <div class="card">
+    <h3 style="color: #FF9800; margin-bottom: 5px;">Cari & Pilih Warga</h3>
+    <input type="text" id="inputCariManual" placeholder="Ketik nama atau no rumah..." onkeyup="filterCariManual()" style="font-size: 14px; padding: 10px; margin-bottom: 10px;">
+    <div id="hasilCariManual" style="max-height: 320px; overflow-y: auto; font-size: 13px;"></div>
+  </div>
+</div>
+
+<div id="viewRekapLengkap" style="display:none;">
+  <button class="btn-utama btn-kembali" onclick="gantiView('dashboard')">Kembali ke Dashboard</button>
+  <div class="card">
+    <h3>Semua Riwayat Transaksi</h3>
+    <div id="listRiwayatLengkap"></div>
+  </div>
+</div>
+
+<script>
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyr7JlYtzVdUcSA1YHcdOt-qyCpfrnRG3-7WoC12v7pOB7UG7qbpfNKVEtuegebXfOl/exec";
+let globalData = { warga: [], riwayat: [], setting: { iuran: 50000 } };
+let currentUserEmail = "";
+
+function tampilkanLoader(teks) {
+  document.getElementById('loaderText').innerText = teks || "Memproses...";
+  document.getElementById('loaderOverlay').style.display = 'flex';
+}
+function sembunyikanLoader() {
+  document.getElementById('loaderOverlay').style.display = 'none';
+}
+function tampilNotifikasi(pesan, judul = "Informasi") {
+  document.getElementById('modalHeaderTitle').innerText = judul;
+  document.getElementById('modalBodyMessage').innerText = pesan;
+  document.getElementById('customModalOverlay').style.display = 'flex';
+}
+function tutupNotifikasi() {
+  document.getElementById('customModalOverlay').style.display = 'none';
+}
+
+function callServer(funcName, param, callback) {
+  tampilkanLoader("Menghubungkan ke Server...");
+  let fullUrl = SCRIPT_URL + "?mode=api&fn=" + funcName + (param ? "&data=" + encodeURIComponent(JSON.stringify(param)) : "");
+  
+  fetch(fullUrl)
+    .then(res => res.json())
+    .then(data => {
+      sembunyikanLoader();
+      if(callback) callback(data);
+    })
+    .catch(err => {
+      sembunyikanLoader();
+      tampilkanLoader("Koneksi gagal: " + err);
+      setTimeout(sembunyikanLoader, 2000);
+    });
+}
+
+function prosesLogin() {
+  let email = document.getElementById('inputLoginEmail').value;
+  let pin = document.getElementById('inputLoginPin').value;
+  if(!email || !pin) {
+    tampilNotifikasi("Email dan PIN harus diisi!");
+    return;
+  }
+  callServer("cekLogin", {email: email, pin: pin}, function(res) {
+    if(res.success) {
+      currentUserEmail = email;
+      document.getElementById('lblAkunAktif').innerText = email;
+      loadAppData();
+      gantiView('dashboard');
+    } else {
+      tampilNotifikasi("Login Gagal: Email atau PIN salah.");
+    }
+  });
+}
+
+function loadAppData() {
+  callServer("getAppData", null, function(data) {
+    globalData = data;
+    renderDashboard();
+  });
+}
+
+function gantiView(namaView) {
+  ['viewLogin', 'viewLupaPin', 'viewVerifikasiOTP', 'viewDashboard', 'viewWarga', 'viewLaporan', 'viewScannerQR', 'viewScanManual', 'viewRekapLengkap'].forEach(v => {
+    document.getElementById(v).style.display = 'none';
+  });
+  if(namaView === 'dashboard') document.getElementById('viewDashboard').style.display = 'block';
+  else if(namaView === 'warga') { renderWarga(); document.getElementById('viewWarga').style.display = 'block'; }
+  else if(namaView === 'laporan') { renderLaporan(); document.getElementById('viewLaporan').style.display = 'block'; }
+  else if(namaView === 'rekapLengkap') { renderRekapLengkap(); document.getElementById('viewRekapLengkap').style.display = 'block'; }
+  else if(namaView === 'scanner') document.getElementById('viewScannerQR').style.display = 'block';
+  else if(namaView === 'scanManual') { renderScanManualList(); document.getElementById('viewScanManual').style.display = 'block'; }
+}
+
+function renderDashboard() {
+  let totalMasuk = 0, totalKeluar = 0;
+  globalData.riwayat.forEach(r => {
+    if(r.jenis === 'Masuk') totalMasuk += r.nominalAsli;
+    else if(r.jenis === 'Keluar') totalKeluar += r.nominalAsli;
+  });
+  let saldo = totalMasuk - totalKeluar;
+  document.getElementById('saldoAwal').innerText = "Rp " + saldo.toLocaleString('id-ID');
+  document.getElementById('totMasuk').innerText = "Rp " + totalMasuk.toLocaleString('id-ID');
+  document.getElementById('totKeluar').innerText = "Rp " + totalKeluar.toLocaleString('id-ID');
+  
+  let html = "";
+  globalData.riwayat.slice(-5).reverse().forEach(r => {
+    html += `<div class="trx-item"><b>${r.tanggal}</b> - [${r.kategori}] ${r.noRumah} (${r.warga})<br>${r.uraian}: <span style="color:${r.jenis==='Masuk'?'#2E7D32':'#C62828'}">Rp ${r.nominalAsli.toLocaleString('id-ID')}</span></div>`;
+  });
+  document.getElementById('listRiwayatPendek').innerHTML = html || "<p>Belum ada riwayat transaksi.</p>";
+  
+  let selectWarga = document.getElementById('opsiWarga');
+  selectWarga.innerHTML = "";
+  globalData.warga.forEach(w => {
+    selectWarga.innerHTML += `<option value="${w.no}">${w.no} - ${w.nama}</option>`;
+  });
+}
+
+function bukaFormTrxBaru() {
+  document.getElementById('barisEdit').value = "";
+  document.getElementById('tanggal').value = new Date().toISOString().split('T')[0];
+  document.getElementById('trxUraian').value = "";
+  document.getElementById('trxNominal').value = globalData.setting.iuran;
+  document.getElementById('formSection').style.display = 'block';
+}
+
+function tutupForm() {
+  document.getElementById('formSection').style.display = 'none';
+}
+
+function submitTransaksi(e) {
+  e.preventDefault();
+  let trx = {
+    barisEdit: document.getElementById('barisEdit').value,
+    tanggal: document.getElementById('tanggal').value,
+    jenis: document.getElementById('trxJenis').value,
+    kategori: document.getElementById('trxKategori').value,
+    noRumah: document.getElementById('opsiWarga').value,
+    warga: document.getElementById('opsiWarga').options[document.getElementById('opsiWarga').selectedIndex].text.split(' - ')[1],
+    uraian: document.getElementById('trxUraian').value,
+    nominalAsli: parseFloat(document.getElementById('trxNominal').value)
+  };
+  callServer("simpanTransaksi", trx, function(data) {
+    globalData = data;
+    renderDashboard();
+    tutupForm();
+    tampilNotifikasi("Transaksi berhasil disimpan!");
+  });
+}
+
+function renderWarga() {
+  let html = `<table><tr><th>No Rumah</th><th>Nama</th><th>Aksi</th></tr>`;
+  globalData.warga.forEach(w => {
+    html += `<tr><td>${w.no}</td><td>${w.nama}</td><td><button onclick="hapusWargaData('${w.no}')" style="background:#C62828;color:white;border:none;padding:4px 8px;border-radius:4px;">Hapus</button></td></tr>`;
+  });
+  html += `</table>`;
+  document.getElementById('tabelWargaContainer').innerHTML = html;
+}
+
+function bukaFormTambahWarga() {
+  let no = prompt("Masukkan No Rumah:");
+  let nama = prompt("Masukkan Nama Warga:");
+  if(no && nama) {
+    callServer("simpanWargaBaru", {no: no, nama: nama}, function(data) {
+      globalData = data;
+      renderWarga();
+      tampilNotifikasi("Warga berhasil ditambahkan!");
+    });
+  }
+}
+
+function hapusWargaData(no) {
+  if(confirm("Hapus warga ini?")) {
+    callServer("hapusWarga", {no: no}, function(data) {
+      globalData = data;
+      renderWarga();
+    });
+  }
+}
+
+function renderLaporan() {
+  let totalMasuk = 0, totalKeluar = 0;
+  globalData.riwayat.forEach(r => {
+    if(r.jenis === 'Masuk') totalMasuk += r.nominalAsli;
+    else totalKeluar += r.nominalAsli;
+  });
+  document.getElementById('laporanContainer').innerHTML = `<p><b>Total Pemasukan:</b> Rp ${totalMasuk.toLocaleString('id-ID')}</p><p><b>Total Pengeluaran:</b> Rp ${totalKeluar.toLocaleString('id-ID')}</p><p><b>Saldo Bersih:</b> Rp ${(totalMasuk - totalKeluar).toLocaleString('id-ID')}</p>`;
+}
+
+function renderRekapLengkap() {
+  let html = "";
+  globalData.riwayat.slice().reverse().forEach(r => {
+    html += `<div class="trx-item"><b>${r.tanggal}</b> - [${r.kategori}] ${r.noRumah} (${r.warga})<br>${r.uraian}: <b>Rp ${r.nominalAsli.toLocaleString('id-ID')}</b></div>`;
+  });
+  document.getElementById('listRiwayatLengkap').innerHTML = html || "<p>Tidak ada data.</p>";
+}
+
+function bukaScanner() { gantiView('scanner'); }
+function bukaScanManual() { gantiView('scanManual'); }
+function renderScanManualList() {
+  let html = "";
+  globalData.warga.forEach(w => {
+    html += `<div style="padding:10px;border-bottom:1px solid #eee;cursor:pointer;" onclick="tampilProfilWarga('${w.no}')"><b>${w.no}</b> - ${w.nama}</div>`;
+  });
+  document.getElementById('hasilCariManual').innerHTML = html;
+}
+function filterCariManual() {
+  let q = document.getElementById('inputCariManual').value.toLowerCase();
+  let html = "";
+  globalData.warga.filter(w => w.nama.toLowerCase().includes(q) || w.no.toLowerCase().includes(q)).forEach(w => {
+    html += `<div style="padding:10px;border-bottom:1px solid #eee;cursor:pointer;" onclick="tampilProfilWarga('${w.no}')"><b>${w.no}</b> - ${w.nama}</div>`;
+  });
+  document.getElementById('hasilCariManual').innerHTML = html;
+}
+function tampilProfilWarga(no) {
+  let w = globalData.warga.find(item => item.no === no);
+  if(w) tampilNotifikasi("Warga dipilih: " + w.nama + " (No: " + w.no + ")");
+}
+function logoutAkun() { location.reload(); }
+function tampilLupaPin() { gantiView('lupaPin'); }
+function kirimOTPLupaPin() {
+  let email = document.getElementById('inputLupaEmail').value;
+  callServer("kirimOTPReal", {email: email}, function(res) {
+    if(res.success) { gantiView('verifikasiOTP'); }
+    else { tampilNotifikasi(res.msg); }
+  });
+}
+function verifikasiDanResetPIN() {
+  let email = document.getElementById('inputLupaEmail').value;
+  let otp = document.getElementById('inputOTP').value;
+  let pinBaru = document.getElementById('inputPinBaru').value;
+  callServer("verifikasiOTPDanGantiPIN", {email: email, otp: otp, pinBaru: pinBaru}, function(res) {
+    if(res.success) { gantiView('login'); tampilNotifikasi("PIN berhasil direset, silakan login."); }
+    else { tampilNotifikasi(res.msg); }
+  });
+}
+function kembaliKeLogin() { gantiView('login'); }
+function scanFileQRSensitive(el) { tampilNotifikasi("Fitur scan gambar QR aktif."); }
+</script>
+</body>
+</html>
