@@ -82,16 +82,23 @@ input, select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radiu
 .qr-history-list li:last-child { border-bottom: none; }
 
 /* PRINT THERMAL 58 MM */
+.cetak-card { width: 52mm; margin: 0 auto 10px auto; padding: 5px 0; text-align: center; border-bottom: 2px dashed #000; box-sizing: border-box; }
+.cetak-card img { width: 34mm; height: 34mm; margin: 5px auto; display: block; border: none; }
+.c-nama { font-size: 13px; font-weight: bold; color: #000; margin-bottom: 1px; }
+.c-no { font-size: 11px; color: #000; font-weight: normal; margin-bottom: 2px; }
+.c-batas { font-size: 10px; font-weight: bold; margin-top: 6px; letter-spacing: -1px; }
+
 @media print {
   @page { margin: 0; size: 58mm auto; }
   body { background-color: white !important; margin: 0; padding: 0; color: #000 !important; visibility: hidden; }
   #viewCetakQR, #viewCetakQR * { visibility: visible; }
   #viewCetakQR { position: absolute; left: 0; top: 0; width: 58mm; padding: 0 !important; margin: 0 !important; }
   .no-print { display: none !important; }
-  .cetak-card { width: 52mm; margin: 0 auto; padding: 2mm 0 3mm 0; text-align: center; border-bottom: 1px dashed #000; page-break-inside: avoid; }
+  .cetak-card { width: 52mm; margin: 0 auto; padding: 3mm 0 4mm 0; text-align: center; border-bottom: 2px dashed #000; page-break-after: always; page-break-inside: avoid; }
   .cetak-card img { width: 34mm; height: 34mm; margin: 2mm auto; display: block; border: none; }
   .c-nama { font-size: 13px; font-weight: bold; color: #000 !important; margin-bottom: 1px; }
   .c-no { font-size: 11px; color: #000 !important; font-weight: normal; margin-bottom: 2px; }
+  .c-batas { font-size: 10px; font-weight: bold; margin-top: 4px; letter-spacing: -1px; }
 }
 </style>
 </head>
@@ -124,7 +131,8 @@ input, select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radiu
 
 <div class="header no-print">
   <h2 id="judulApp">Kas RT Mobile</h2>
-  <div id="headerVersionInfo" class="header-version">Versi 1.1.2</div>
+  <div id="headerVersionInfo" class="header-version">Versi 1.1.4</div>
+  <div style="font-size: 11px; color: #777; font-weight: bold; margin-top: 3px; letter-spacing: 0.5px;">Powered By Ari GPM</div>
 </div>
 
 <!-- VIEW 1: LOGIN -->
@@ -337,6 +345,7 @@ let currentProfilNo = "";
 let html5QrCode = null;
 let isPublicMode = false;
 let currentEditTrxId = null;
+let singlePrintNo = null;
 
 // DETEKSI MODE PUBLIK TRANPARANSI DARI URL
 window.addEventListener('DOMContentLoaded', () => {
@@ -347,7 +356,7 @@ window.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('.id-public-only').forEach(el => el.style.display = 'block');
     
     let headerInfo = document.getElementById('headerVersionInfo');
-    headerInfo.innerHTML = `<button class="btn-login-admin" onclick="window.location.href=window.location.pathname">🔑 Login Admin</button>`;
+    headerInfo.innerHTML = `Versi 1.1.4 | <button class="btn-login-admin" onclick="window.location.href=window.location.pathname">🔑 Login Admin</button>`;
     
     callServer("getAppData", null, function(data) {
       if(data) globalData = data;
@@ -423,8 +432,10 @@ function gantiView(namaView) {
     else if(namaView === 'warga') renderWarga();
     else if(namaView === 'laporan') renderLaporan();
     else if(namaView === 'scanManual') renderScanManualList();
-    else if(namaView === 'cetakQR') renderCetakQR();
+    else if(namaView === 'cetakQR') renderCetakQR(singlePrintNo);
     else if(namaView === 'rekapLengkap') renderRekapLengkap();
+
+    if(namaView !== 'cetakQR') singlePrintNo = null;
   } catch(err) {
     document.getElementById('viewDashboard').style.display = 'block';
   }
@@ -640,11 +651,7 @@ function tampilProfilWarga(no) {
 }
 
 function cetakQRPerorangan() {
-  let w = globalData.warga.find(item => item.no.toString() === currentProfilNo.toString());
-  if(!w) return;
-  let qrUrl = "https://quickchart.io/qr?text=" + encodeURIComponent(w.no) + "&size=150";
-  let h = `<div class="cetak-card"><div class="c-nama">${w.nama}</div><div class="c-no">No. ${w.no}</div><img src="${qrUrl}" alt="QR"><div style="font-size:9px;margin-top:2px;">Scan untuk Cek Kas</div></div>`;
-  document.getElementById('cetakQRContainer').innerHTML = h;
+  singlePrintNo = currentProfilNo;
   gantiView('cetakQR');
   setTimeout(() => { window.print(); }, 300);
 }
@@ -705,6 +712,85 @@ function bukaModalEditKategori(oldName) {
   });
 }
 
+// EKSPORT BACKUP DATABASE KE FORMAT CSV / GOOGLE SHEETS
+function downloadBackupGoogleSheet() {
+  if (!globalData) return tampilNotifikasi("Data database belum dimuat penuh.");
+  
+  let now = new Date();
+  let tglStr = now.toISOString().split('T')[0];
+  
+  let inTot = 0, outTot = 0;
+  let katMasuk = {}, katKeluar = {};
+  if (globalData.riwayat) {
+    globalData.riwayat.forEach(r => {
+      let nom = r.nominalAsli || 0;
+      if (r.jenis === 'Masuk') {
+        inTot += nom;
+        katMasuk[r.kategori] = (katMasuk[r.kategori] || 0) + nom;
+      } else {
+        outTot += nom;
+        katKeluar[r.kategori] = (katKeluar[r.kategori] || 0) + nom;
+      }
+    });
+  }
+  let saldo = inTot - outTot;
+
+  let csvContent = "\uFEFF"; // UTF-8 BOM
+  
+  csvContent += "=== BACKUP DATABASE KAS RT MOBILE ===\n";
+  csvContent += `Waktu Backup,${now.toLocaleString('id-ID')}\n`;
+  csvContent += `Total Saldo Kas,Rp ${saldo}\n`;
+  csvContent += `Total Kas Masuk,Rp ${inTot}\n`;
+  csvContent += `Total Kas Keluar,Rp ${outTot}\n\n`;
+
+  csvContent += "=== RINGKASAN REKAP PER KATEGORI ===\n";
+  csvContent += "Kategori,Jenis,Total Nominal (Rp)\n";
+  dapatkanDaftarKategoriUnik().forEach(k => {
+    let m = katMasuk[k] || 0;
+    let kNom = katKeluar[k] || 0;
+    if (m > 0) csvContent += `"${k}",Masuk,${m}\n`;
+    if (kNom > 0) csvContent += `"${k}",Keluar,${kNom}\n`;
+    if (m === 0 && kNom === 0) csvContent += `"${k}",-,0\n`;
+  });
+  csvContent += "\n";
+
+  csvContent += "=== DATABASE RIWAYAT TRANSAKSI ===\n";
+  csvContent += "Baris ID,Tanggal,Jenis,Kategori,No Rumah,Nama Warga,Keterangan / Uraian,Nominal (Rp)\n";
+  if (globalData.riwayat && globalData.riwayat.length > 0) {
+    globalData.riwayat.forEach(r => {
+      let ur = (r.uraian || "").replace(/"/g, '""');
+      let wg = (r.warga || "").replace(/"/g, '""');
+      let kat = (r.kategori || "").replace(/"/g, '""');
+      csvContent += `"${r.baris || r.id || ''}","${r.tanggal || ''}","${r.jenis || ''}","${kat}","${r.noRumah || ''}","${wg}","${ur}",${r.nominalAsli || 0}\n`;
+    });
+  } else {
+    csvContent += "Tidak ada data transaksi\n";
+  }
+  csvContent += "\n";
+
+  csvContent += "=== DATABASE DATA WARGA ===\n";
+  csvContent += "No Rumah,Nama Warga,Bulan Terbayar\n";
+  if (globalData.warga && globalData.warga.length > 0) {
+    globalData.warga.forEach(w => {
+      let blnList = dapatkanDaftarBulanIuran(w.no).join("; ");
+      csvContent += `"${w.no}","${(w.nama || "").replace(/"/g, '""')}","${blnList || 'Belum Ada'}"\n`;
+    });
+  } else {
+    csvContent += "Tidak ada data warga\n";
+  }
+
+  let blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  let link = document.createElement("a");
+  let url = URL.createObjectURL(blob);
+  link.setAttribute("href", url);
+  link.setAttribute("download", `Backup_Kas_RT_${tglStr}.csv`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  
+  tampilNotifikasi("File backup database Kas RT berhasil diunduh! File CSV ini siap langsung dibuka di Google Sheets atau Excel.", "Backup Berhasil");
+}
+
 // LAPORAN PUBLIK DENGAN KATEGORI 2 KOLOM SEJAJAR & WARNA-WARNI
 function renderLaporan() {
   let inTot = 0, outTot = 0;
@@ -733,14 +819,14 @@ function renderLaporan() {
     </div>`;
 
   const colorPalette = [
-    { bg: '#E8F5E9', border: '#C8E6C9', text: '#2E7D32' }, // Soft Green
-    { bg: '#E3F2FD', border: '#BBDEFB', text: '#1565C0' }, // Soft Blue
-    { bg: '#FFF3E0', border: '#FFE0B2', text: '#E65100' }, // Soft Orange
-    { bg: '#F3E5F5', border: '#E1BEE7', text: '#7B1FA2' }, // Soft Purple
-    { bg: '#E0F2F1', border: '#B2DFDB', text: '#00695C' }, // Soft Teal
-    { bg: '#FCE4EC', border: '#F8BBD0', text: '#C2185B' }, // Soft Pink
-    { bg: '#FFFDE7', border: '#FFF59D', text: '#F57F17' }, // Soft Yellow
-    { bg: '#EFEBE9', border: '#D7CCC8', text: '#4E342E' }  // Soft Brown
+    { bg: '#E8F5E9', border: '#C8E6C9', text: '#2E7D32' },
+    { bg: '#E3F2FD', border: '#BBDEFB', text: '#1565C0' },
+    { bg: '#FFF3E0', border: '#FFE0B2', text: '#E65100' },
+    { bg: '#F3E5F5', border: '#E1BEE7', text: '#7B1FA2' },
+    { bg: '#E0F2F1', border: '#B2DFDB', text: '#00695C' },
+    { bg: '#FCE4EC', border: '#F8BBD0', text: '#C2185B' },
+    { bg: '#FFFDE7', border: '#FFF59D', text: '#F57F17' },
+    { bg: '#EFEBE9', border: '#D7CCC8', text: '#4E342E' }
   ];
 
   h += `<div class="kat-grid">`;
@@ -795,6 +881,8 @@ function renderLaporan() {
   });
 
   h += `</div>`;
+
+  h += `<button class="btn-utama" style="background:#00796B; margin-top:10px;" onclick="downloadBackupGoogleSheet()">📊 Backup Database Kas (Format Google Sheet)</button>`;
 
   if(!isPublicMode) {
     h += `<button class="btn-utama btn-whatsapp" onclick="shareLaporanWA()" style="margin-top:10px;">📱 Bagikan Laporan & Link Publik Ke WhatsApp</button>`;
@@ -893,9 +981,27 @@ function filterCariManual() {
   if(globalData.warga) { globalData.warga.filter(w => w.nama.toLowerCase().includes(q) || w.no.toLowerCase().includes(q)).forEach(w => { h += `<div style="padding:10px;border-bottom:1px solid #eee; cursor:pointer;" onclick="tampilProfilWarga('${w.no}')"><b>${w.no}</b> - ${w.nama}</div>`; }); }
   document.getElementById('hasilCariManual').innerHTML = h;
 }
-function renderCetakQR() {
+
+function renderCetakQR(targetNo = null) {
   let h = "";
-  if(globalData.warga) { globalData.warga.forEach(w => { let qrUrl = "https://quickchart.io/qr?text=" + encodeURIComponent(w.no) + "&size=150"; h += `<div class="cetak-card"><div class="c-nama">${w.nama}</div><div class="c-no">No. ${w.no}</div><img src="${qrUrl}" alt="QR"><div style="font-size:9px;margin-top:2px;">Scan untuk Cek Kas</div></div>`; }); }
+  let listWarga = globalData.warga || [];
+  
+  if (targetNo) {
+    listWarga = listWarga.filter(w => w.no.toString() === targetNo.toString());
+  }
+
+  if (listWarga.length > 0) {
+    listWarga.forEach(w => {
+      let qrUrl = "https://quickchart.io/qr?text=" + encodeURIComponent(w.no) + "&size=150";
+      h += `<div class="cetak-card">
+              <div class="c-nama">${w.nama}</div>
+              <div class="c-no">No. ${w.no}</div>
+              <img src="${qrUrl}" alt="QR">
+              <div style="font-size:9px; margin-top:2px;">Scan untuk Cek Kas</div>
+              <div class="c-batas">- - - - - - - - - - - - - - - - - - -</div>
+            </div>`;
+    });
+  }
   document.getElementById('cetakQRContainer').innerHTML = h;
 }
 
