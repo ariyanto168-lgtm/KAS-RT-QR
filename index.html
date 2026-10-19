@@ -8,7 +8,6 @@
 <meta name="theme-color" content="#2E7D32">
 <link rel="apple-touch-icon" href="./logokasrtqr4.jpg">
 
-<!-- Pustaka Pembaca QR Code dengan penanganan aman -->
 <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
 
 <style>
@@ -17,7 +16,7 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-
 .header-version { font-size: 11px; color: #666; font-weight: bold; margin-top: 2px; letter-spacing: 1px; }
 .card { background: white; padding: 15px; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 15px; }
 .saldo-box { text-align: center; background: #E3F2FD; border: 1px solid #BBDEFB; }
-h2, h3 { margin: 0 0 10px 0; }
+h2, h3, h4 { margin: 0 0 10px 0; }
 .saldo-text { font-size: 26px; font-weight: bold; color: #1565C0; margin-top: 5px; }
 .flex-container { display: flex; justify-content: space-between; gap: 10px; }
 .box { flex: 1; text-align: center; padding: 12px; border-radius: 8px; font-size: 14px; }
@@ -34,6 +33,7 @@ th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
 th { background-color: #f5f5f5; color: #333333; }
 .btn-utama { background: #2E7D32; color: white; border: none; padding: 12px; width: 100%; border-radius: 8px; font-size: 15px; font-weight: bold; cursor: pointer; margin-bottom: 15px; transition: 0.2s;}
 .btn-utama:active { transform: scale(0.98); }
+.btn-whatsapp { background: #25D366; color: white; }
 .btn-kembali { background: #546E7A; margin-bottom: 15px; }
 .btn-lihat-semua { background: #1565C0; margin-bottom: 15px; }
 label { font-size: 13px; font-weight: bold; color: #555; display: block; margin-top: 10px; margin-bottom: 5px; text-align: left; }
@@ -55,7 +55,7 @@ input, select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radiu
 .custom-modal-btn { background: #2E7D32; color: white; border: none; padding: 8px 16px; border-radius: 6px; font-size: 13px; font-weight: bold; cursor: pointer; transition: 0.2s; }
 .custom-modal-btn:hover { filter: brightness(0.9); }
 
-/* STYLING PROFIL HASIL SCAN */
+/* PROFIL HASIL SCAN */
 .qr-card { text-align: center; padding: 20px; }
 .qr-header { font-size: 16px; color: #555; margin-bottom: 10px; font-weight: bold; }
 .qr-warga-name { font-size: 24px; font-weight: bold; color: #1565C0; margin-bottom: 2px;}
@@ -104,7 +104,7 @@ input, select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radiu
 
 <div class="header no-print">
   <h2 id="judulApp">Kas RT Mobile</h2>
-  <div class="header-version">Versi 1.0.4 (Anti-Blank & Robust UI)</div>
+  <div class="header-version">Versi 1.0.5 (Laporan Publik & Share WA)</div>
 </div>
 
 <!-- VIEW 1: LOGIN -->
@@ -242,13 +242,10 @@ input, select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radiu
   <button class="btn-utama" style="background:#00695C;" onclick="gantiView('cetakQR')">Cetak Semua QR Warga</button>
 </div>
 
-<!-- VIEW 6: LAPORAN PUBLIK -->
+<!-- VIEW 6: LAPORAN PUBLIK (LENGKAP + SHARE WA) -->
 <div id="viewLaporan" class="app-view no-print" style="display:none;">
   <button class="btn-utama btn-kembali" onclick="gantiView('dashboard')">Kembali ke Dashboard</button>
-  <div class="card">
-    <h3>Laporan Publik & Rekapitulasi</h3>
-    <div id="laporanContainer"></div>
-  </div>
+  <div id="laporanContainer"></div>
 </div>
 
 <!-- VIEW 7: SCAN MANUAL -->
@@ -336,14 +333,11 @@ function tampilNotifikasi(pesan, judul = "Informasi") {
 }
 function tutupNotifikasi() { document.getElementById('customModalOverlay').style.display = 'none'; }
 
-// SYSTEM SWITCHING VIEW ANTI-BLANK TERPRODUKSI
 function gantiView(namaView) {
   try {
-    // Sembunyikan semua elemen tampilan
     const allViews = document.querySelectorAll('.app-view');
     allViews.forEach(v => v.style.display = 'none');
 
-    // Tentukan ID sasaran
     let targetId = 'view' + namaView.charAt(0).toUpperCase() + namaView.slice(1);
     if(namaView === 'scannerQR') targetId = 'viewScannerQR';
     
@@ -352,11 +346,9 @@ function gantiView(namaView) {
     if (targetEl) {
       targetEl.style.display = 'block';
     } else {
-      console.warn("Layar tidak ditemukan:", namaView);
       document.getElementById('viewDashboard').style.display = 'block';
     }
 
-    // Pemanggilan data aman bergaransi (Safe execution)
     if(namaView === 'dashboard') renderDashboard();
     else if(namaView === 'warga') renderWarga();
     else if(namaView === 'laporan') renderLaporan();
@@ -364,12 +356,10 @@ function gantiView(namaView) {
     else if(namaView === 'cetakQR') renderCetakQR();
     else if(namaView === 'rekapLengkap') renderRekapLengkap();
   } catch(err) {
-    console.error("Gagal berpindah layar:", err);
     document.getElementById('viewDashboard').style.display = 'block';
   }
 }
 
-// KOMUNIKASI SERVER API
 function callServer(funcName, param, callback) {
   tampilkanLoader("Menghubungkan Server...");
   let fullUrl = SCRIPT_URL + "?mode=api&fn=" + funcName + (param ? "&data=" + encodeURIComponent(JSON.stringify(param)) : "");
@@ -498,7 +488,7 @@ function submitTransaksi(e) {
   });
 }
 
-// SCANNER QR KAMERA / GALERI
+// SCANNER QR
 function bukaScanner() {
   gantiView('scannerQR');
   try {
@@ -517,9 +507,7 @@ function bukaScanner() {
     } else {
       document.getElementById('reader').innerHTML = '<p style="color:orange; font-size:12px; padding:10px;">Mode kamera galeri aktif.</p>';
     }
-  } catch(e) {
-    console.error("Scanner Error:", e);
-  }
+  } catch(e) { console.error("Scanner Error:", e); }
 }
 
 function tutupScanner() {
@@ -537,8 +525,6 @@ function scanFileQRSensitive(input) {
       html5QrCode.scanFile(input.files[0], true)
       .then(decodedText => prosesHasilScanQR(decodedText))
       .catch(() => tampilNotifikasi("QR Code tidak terbaca dari foto ini."));
-    } else {
-      tampilNotifikasi("Library scanner belum terisi penuh.");
     }
   }
 }
@@ -546,11 +532,8 @@ function scanFileQRSensitive(input) {
 function prosesHasilScanQR(noRumahRaw) {
   let noRumah = (noRumahRaw || "").trim();
   let w = globalData.warga ? globalData.warga.find(item => item.no.toString() === noRumah) : null;
-  if(w) {
-    tampilProfilWarga(w.no);
-  } else {
-    tampilNotifikasi("Nomor Rumah '" + noRumah + "' tidak ditemukan di database warga!");
-  }
+  if(w) tampilProfilWarga(w.no);
+  else tampilNotifikasi("Nomor Rumah '" + noRumah + "' tidak ditemukan di database warga!");
 }
 
 function tampilProfilWarga(no) {
@@ -593,6 +576,107 @@ function bayarKasDariProfil() {
   document.getElementById('opsiWarga').value = currentProfilNo;
 }
 
+// ==========================================
+// LAPORAN PUBLIK & SHARE WHATSAPP
+// ==========================================
+function renderLaporan() {
+  let inTot = 0, outTot = 0;
+  let katMap = {
+    "Iuran Bulanan": 0,
+    "Sosial": 0,
+    "Kematian": 0,
+    "Kerja Bakti": 0,
+    "Iuran Darurat": 0,
+    "Jimpitan": 0,
+    "Pindah Saldo": 0
+  };
+
+  if(globalData.riwayat && Array.isArray(globalData.riwayat)) {
+    globalData.riwayat.forEach(r => {
+      let nom = (r.nominalAsli || 0);
+      if(r.jenis === 'Masuk') {
+        inTot += nom;
+        if(katMap[r.kategori] !== undefined) katMap[r.kategori] += nom;
+        else katMap[r.kategori] = nom;
+      } else {
+        outTot += nom;
+      }
+    });
+  }
+
+  let saldo = inTot - outTot;
+
+  let h = `
+    <div class="card saldo-box" style="margin-bottom:15px;">
+      <h3 style="color: #555; font-size: 14px;">Total Saldo Kas RT</h3>
+      <div class="saldo-text">Rp ${saldo.toLocaleString('id-ID')}</div>
+    </div>
+    
+    <div class="flex-container card" style="padding: 10px; margin-bottom:15px;">
+      <div class="box masuk"><b>Total Masuk</b><br><span>Rp ${inTot.toLocaleString('id-ID')}</span></div>
+      <div class="box keluar"><b>Total Keluar</b><br><span>Rp ${outTot.toLocaleString('id-ID')}</span></div>
+    </div>
+
+    <div class="card">
+      <h4 style="margin-top:0; color:#00695C; border-bottom:1px solid #ddd; padding-bottom:8px;">Pemasukan Per Kategori</h4>
+      <table style="margin-top:5px;">
+        <tr><th>Kategori</th><th>Total Akumulasi</th></tr>`;
+  
+  for(let k in katMap) {
+    h += `<tr><td>${k}</td><td><b>Rp ${katMap[k].toLocaleString('id-ID')}</b></td></tr>`;
+  }
+
+  h += `</table>
+    </div>
+
+    <button class="btn-utama btn-whatsapp" onclick="shareLaporanWA()" style="margin-top:10px;">
+      📱 Bagikan Laporan Ke WhatsApp
+    </button>`;
+
+  document.getElementById('laporanContainer').innerHTML = h;
+}
+
+function shareLaporanWA() {
+  let inTot = 0, outTot = 0;
+  let katMap = {};
+
+  if(globalData.riwayat && Array.isArray(globalData.riwayat)) {
+    globalData.riwayat.forEach(r => {
+      let nom = (r.nominalAsli || 0);
+      if(r.jenis === 'Masuk') {
+        inTot += nom;
+        katMap[r.kategori] = (katMap[r.kategori] || 0) + nom;
+      } else {
+        outTot += nom;
+      }
+    });
+  }
+
+  let saldo = inTot - outTot;
+  let dateStr = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+
+  let text = `*📊 LAPORAN REKAPITULASI KAS RT*\n`;
+  text += `Per Tanggal: _${dateStr}_\n`;
+  text += `=========================\n`;
+  text += `💰 *TOTAL SALDO:* Rp ${saldo.toLocaleString('id-ID')}\n`;
+  text += `📥 *Total Pemasukan:* Rp ${inTot.toLocaleString('id-ID')}\n`;
+  text += `📤 *Total Pengeluaran:* Rp ${outTot.toLocaleString('id-ID')}\n\n`;
+  text += `*Rincian Pemasukan Per Kategori:*\n`;
+
+  for(let k in katMap) {
+    if(katMap[k] > 0) {
+      text += `• ${k}: Rp ${katMap[k].toLocaleString('id-ID')}\n`;
+    }
+  }
+
+  text += `=========================\n`;
+  text += `_Dipublikasikan via Aplikasi Kas RT Mobile_`;
+
+  let waUrl = "https://api.whatsapp.com/send?text=" + encodeURIComponent(text);
+  window.open(waUrl, '_blank');
+}
+
+// WARGA, REKAP & CETAK
 function renderWarga() {
   let h = "<table><tr><th>No Rumah</th><th>Nama</th><th>Aksi</th></tr>";
   if(globalData.warga && Array.isArray(globalData.warga)) {
@@ -606,14 +690,6 @@ function bukaFormTambahWarga() {
   if(no && nm) callServer("simpanWargaBaru", {no:no, nama:nm}, d => { if(d) globalData = d; renderWarga(); });
 }
 function hapusWarga(no) { if(confirm("Hapus "+no+"?")) callServer("hapusWarga", {no:no}, d => { if(d) globalData = d; renderWarga(); }); }
-
-function renderLaporan() {
-  let inTot = 0, outTot = 0;
-  if(globalData.riwayat) {
-    globalData.riwayat.forEach(r => { if(r.jenis === 'Masuk') inTot += (r.nominalAsli||0); else outTot += (r.nominalAsli||0); });
-  }
-  document.getElementById('laporanContainer').innerHTML = `<p><b>Total Pemasukan:</b> Rp ${inTot.toLocaleString('id-ID')}</p><p><b>Total Pengeluaran:</b> Rp ${outTot.toLocaleString('id-ID')}</p><p><b>Saldo Bersih:</b> Rp ${(inTot - outTot).toLocaleString('id-ID')}</p>`;
-}
 
 function renderRekapLengkap() {
   let h = "";
