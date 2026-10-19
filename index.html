@@ -4,16 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Kas RT Mobile</title>
-<!-- Link ke Manifest untuk Install HP -->
 <link rel="manifest" href="./manifest.json">
 <meta name="theme-color" content="#2E7D32">
 <link rel="apple-touch-icon" href="./logokasrtqr4.jpg">
 
-<!-- Library Pembaca QR Code Live Kamera -->
+<!-- Pustaka Pembaca QR Code dengan penanganan aman -->
 <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
 
 <style>
-/* CSS DASAR UI */
 body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f0f2f5; margin: 0; padding: 15px; }
 .header { text-align: center; color: #2E7D32; margin-bottom: 15px; }
 .header-version { font-size: 11px; color: #666; font-weight: bold; margin-top: 2px; letter-spacing: 1px; }
@@ -57,7 +55,7 @@ input, select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radiu
 .custom-modal-btn { background: #2E7D32; color: white; border: none; padding: 8px 16px; border-radius: 6px; font-size: 13px; font-weight: bold; cursor: pointer; transition: 0.2s; }
 .custom-modal-btn:hover { filter: brightness(0.9); }
 
-/* STYLE PROFIL HASIL SCAN */
+/* STYLING PROFIL HASIL SCAN */
 .qr-card { text-align: center; padding: 20px; }
 .qr-header { font-size: 16px; color: #555; margin-bottom: 10px; font-weight: bold; }
 .qr-warga-name { font-size: 24px; font-weight: bold; color: #1565C0; margin-bottom: 2px;}
@@ -89,7 +87,6 @@ input, select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radiu
 </head>
 <body>
 
-<!-- LOADER & MODAL -->
 <div id="loaderOverlay">
   <div class="spinner"></div>
   <p style="margin-top: 15px; font-weight:bold; color: #2E7D32;" id="loaderText">Menyinkronkan Server...</p>
@@ -107,11 +104,11 @@ input, select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radiu
 
 <div class="header no-print">
   <h2 id="judulApp">Kas RT Mobile</h2>
-  <div class="header-version">Versi 1.0.3 QR Scanner (Fast UI)</div>
+  <div class="header-version">Versi 1.0.4 (Anti-Blank & Robust UI)</div>
 </div>
 
-<!-- VIEW LOGIN -->
-<div id="viewLogin" class="card auth-container no-print">
+<!-- VIEW 1: LOGIN -->
+<div id="viewLogin" class="app-view card auth-container no-print" style="display:block;">
   <h3 style="color: #555;">Sistem Pengurus RT</h3>
   <label>Email Pengurus</label>
   <input type="email" id="inputLoginEmail" placeholder="admin@rt.com" autocomplete="off">
@@ -122,16 +119,16 @@ input, select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radiu
   <div class="app-footer">Powered by Ari GPM</div>
 </div>
 
-<!-- VIEW LUPA PIN -->
-<div id="viewLupaPin" class="card auth-container no-print" style="display:none;">
+<!-- VIEW 2: LUPA PIN -->
+<div id="viewLupaPin" class="app-view card auth-container no-print" style="display:none;">
   <h3 style="color: #1565C0;">Pemulihan PIN</h3>
   <input type="email" id="inputLupaEmail" placeholder="Contoh: admin@rt.com" style="margin-bottom: 15px;" autocomplete="off">
   <button class="btn-utama" style="background: #1565C0;" onclick="kirimOTPLupaPin()">Kirim Kode OTP</button>
   <button class="btn-utama btn-kembali" onclick="gantiView('login')">Batal</button>
 </div>
 
-<!-- VIEW VERIFIKASI OTP -->
-<div id="viewVerifikasiOTP" class="card auth-container no-print" style="display:none;">
+<!-- VIEW 3: VERIFIKASI OTP -->
+<div id="viewVerifikasiOTP" class="app-view card auth-container no-print" style="display:none;">
   <h3 style="color: #FF9800;">Verifikasi & Reset</h3>
   <label>Kode OTP dari Email</label>
   <input type="number" id="inputOTP" placeholder="...." style="text-align: center; letter-spacing: 5px; font-size: 18px; margin-bottom: 15px;" autocomplete="off">
@@ -141,8 +138,8 @@ input, select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radiu
   <button class="btn-utama btn-kembali" onclick="gantiView('login')">Batal</button>
 </div>
 
-<!-- VIEW DASHBOARD -->
-<div id="viewDashboard" class="no-print" style="display:none;">
+<!-- VIEW 4: DASHBOARD -->
+<div id="viewDashboard" class="app-view no-print" style="display:none;">
   <div style="background: #E8F5E9; padding: 8px 12px; border-radius: 8px; margin-bottom: 12px; font-size: 12px; color: #2E7D32; display: flex; justify-content: space-between; align-items: center;">
     <span>Akun: <b id="lblAkunAktif">-</b></span>
     <button onclick="location.reload()" style="background: #C62828; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer;">Keluar</button>
@@ -234,8 +231,8 @@ input, select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radiu
   <div class="app-footer">Powered by Ari GPM</div>
 </div>
 
-<!-- VIEW DATA WARGA -->
-<div id="viewWarga" class="no-print" style="display:none;">
+<!-- VIEW 5: DATA WARGA -->
+<div id="viewWarga" class="app-view no-print" style="display:none;">
   <button class="btn-utama btn-kembali" onclick="gantiView('dashboard')">Kembali ke Dashboard</button>
   <div class="card">
     <h3>Manajemen Data Warga</h3>
@@ -245,8 +242,8 @@ input, select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radiu
   <button class="btn-utama" style="background:#00695C;" onclick="gantiView('cetakQR')">Cetak Semua QR Warga</button>
 </div>
 
-<!-- VIEW LAPORAN -->
-<div id="viewLaporan" class="no-print" style="display:none;">
+<!-- VIEW 6: LAPORAN PUBLIK -->
+<div id="viewLaporan" class="app-view no-print" style="display:none;">
   <button class="btn-utama btn-kembali" onclick="gantiView('dashboard')">Kembali ke Dashboard</button>
   <div class="card">
     <h3>Laporan Publik & Rekapitulasi</h3>
@@ -254,8 +251,8 @@ input, select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radiu
   </div>
 </div>
 
-<!-- VIEW SCAN MANUAL -->
-<div id="viewScanManual" class="no-print" style="display:none;">
+<!-- VIEW 7: SCAN MANUAL -->
+<div id="viewScanManual" class="app-view no-print" style="display:none;">
   <button class="btn-utama btn-kembali" onclick="gantiView('dashboard')">Kembali ke Dashboard</button>
   <div class="card">
     <h3 style="color: #FF9800; margin-bottom: 5px;">Cari & Pilih Warga</h3>
@@ -264,8 +261,8 @@ input, select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radiu
   </div>
 </div>
 
-<!-- VIEW REKAP LENGKAP -->
-<div id="viewRekapLengkap" class="no-print" style="display:none;">
+<!-- VIEW 8: REKAP LENGKAP -->
+<div id="viewRekapLengkap" class="app-view no-print" style="display:none;">
   <button class="btn-utama btn-kembali" onclick="gantiView('dashboard')">Kembali ke Dashboard</button>
   <div class="card">
     <h3>Semua Riwayat Transaksi</h3>
@@ -273,22 +270,22 @@ input, select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radiu
   </div>
 </div>
 
-<!-- VIEW SCANNER QR (LIVE KAMERA) -->
-<div id="viewScannerQR" class="no-print" style="display:none;">
+<!-- VIEW 9: SCANNER QR -->
+<div id="viewScannerQR" class="app-view no-print" style="display:none;">
   <button class="btn-utama btn-kembali" onclick="tutupScanner()">Batalkan Scan & Kembali</button>
   <div class="card" style="text-align: center; padding: 15px;">
     <h3 style="color:#1565C0; margin-bottom: 10px;">Scan QR Warga</h3>
-    <p style="font-size:12px; color:#666;">Arahkan kamera HP ke QR Code cetak, atau unggah foto dari galeri.</p>
+    <p style="font-size:12px; color:#666;">Arahkan kamera HP ke QR Code cetak, atau pilih foto dari galeri.</p>
     
     <div id="reader" style="width: 100%; border-radius: 8px; overflow: hidden; margin-bottom:15px; border: 2px dashed #1565C0;"></div>
     
     <input type="file" id="qr-input-file" accept="image/*" style="display:none" onchange="scanFileQRSensitive(this)">
-    <button class="btn-utama" style="background: #673AB7;" onclick="document.getElementById('qr-input-file').click()">Atau Pilih Gambar QR dari Galeri HP</button>
+    <button class="btn-utama" style="background: #673AB7;" onclick="document.getElementById('qr-input-file').click()">Pilih Gambar QR dari Galeri HP</button>
   </div>
 </div>
 
-<!-- VIEW PROFIL SCAN HASIL -->
-<div id="viewProfilScan" class="no-print" style="display:none;">
+<!-- VIEW 10: PROFIL SCAN HASIL -->
+<div id="viewProfilScan" class="app-view no-print" style="display:none;">
   <button class="btn-utama btn-kembali" onclick="gantiView('dashboard')">Kembali ke Dashboard</button>
   <div class="card qr-card">
      <div class="qr-header">Profil Kas Warga</div>
@@ -306,29 +303,27 @@ input, select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radiu
   </div>
 </div>
 
-<!-- VIEW CETAK QR (THERMAL) -->
-<div id="viewCetakQR" style="display:none;">
+<!-- VIEW 11: CETAK QR -->
+<div id="viewCetakQR" class="app-view" style="display:none;">
   <button class="btn-utama btn-kembali no-print" onclick="gantiView('warga')">Kembali</button>
   <button class="btn-utama no-print" style="background:#1565C0;" onclick="window.print()">Print Sekarang (Printer Thermal 58mm)</button>
   <div class="cetak-container" id="cetakQRContainer"></div>
 </div>
 
 <script>
-// DAFTARKAN SERVICE WORKER UNTUK INSTALL PWA
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js').catch(err => console.log('SW Reg Failed', err));
+    navigator.serviceWorker.register('./sw.js').catch(err => console.log('SW Fail:', err));
   });
 }
 
-// === PASTIKAN URL SCRIPT INI BENAR ===
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyr7JlYtzVdUcSA1YHcdOt-qyCpfrnRG3-7WoC12v7pOB7UG7qbpfNKVEtuegebXfOl/exec"; 
 
 let globalData = { warga: [], riwayat: [], setting: { iuran: 50000 } };
 let currentUserEmail = "";
 let currentProfilNo = "";
+let html5QrCode = null;
 
-// FUNGSI UI BANTUAN
 function tampilkanLoader(teks) {
   document.getElementById('loaderText').innerText = teks || "Memproses...";
   document.getElementById('loaderOverlay').style.display = 'flex';
@@ -341,43 +336,40 @@ function tampilNotifikasi(pesan, judul = "Informasi") {
 }
 function tutupNotifikasi() { document.getElementById('customModalOverlay').style.display = 'none'; }
 
-// SISTEM NAVIGASI ANTI-BLANK
+// SYSTEM SWITCHING VIEW ANTI-BLANK TERPRODUKSI
 function gantiView(namaView) {
-  const views = [
-    'viewLogin', 'viewLupaPin', 'viewVerifikasiOTP', 'viewDashboard', 
-    'viewWarga', 'viewLaporan', 'viewScanManual', 'viewRekapLengkap', 
-    'viewScannerQR', 'viewProfilScan', 'viewCetakQR'
-  ];
-  
-  // Sembunyikan semua layar
-  views.forEach(v => {
-    const el = document.getElementById(v);
-    if(el) el.style.display = 'none';
-  });
+  try {
+    // Sembunyikan semua elemen tampilan
+    const allViews = document.querySelectorAll('.app-view');
+    allViews.forEach(v => v.style.display = 'none');
 
-  // Pemetaan manual ID HTML
-  let targetId = 'view' + namaView.charAt(0).toUpperCase() + namaView.slice(1);
-  if(namaView === 'scannerQR') targetId = 'viewScannerQR';
+    // Tentukan ID sasaran
+    let targetId = 'view' + namaView.charAt(0).toUpperCase() + namaView.slice(1);
+    if(namaView === 'scannerQR') targetId = 'viewScannerQR';
+    
+    let targetEl = document.getElementById(targetId) || document.getElementById(namaView);
 
-  // Tampilkan layar yang diminta
-  const targetEl = document.getElementById(targetId);
-  if(targetEl) {
-    targetEl.style.display = 'block';
-  } else {
-    // Fallback jika terjadi error penulisan (Pencegah layar Blank Putih)
-    document.getElementById('viewDashboard').style.display = 'block'; 
+    if (targetEl) {
+      targetEl.style.display = 'block';
+    } else {
+      console.warn("Layar tidak ditemukan:", namaView);
+      document.getElementById('viewDashboard').style.display = 'block';
+    }
+
+    // Pemanggilan data aman bergaransi (Safe execution)
+    if(namaView === 'dashboard') renderDashboard();
+    else if(namaView === 'warga') renderWarga();
+    else if(namaView === 'laporan') renderLaporan();
+    else if(namaView === 'scanManual') renderScanManualList();
+    else if(namaView === 'cetakQR') renderCetakQR();
+    else if(namaView === 'rekapLengkap') renderRekapLengkap();
+  } catch(err) {
+    console.error("Gagal berpindah layar:", err);
+    document.getElementById('viewDashboard').style.display = 'block';
   }
-  
-  // Refresh otomatis data untuk tampilan spesifik
-  if(namaView === 'dashboard') renderDashboard();
-  if(namaView === 'warga') renderWarga();
-  if(namaView === 'laporan') renderLaporan();
-  if(namaView === 'scanManual') renderScanManualList();
-  if(namaView === 'cetakQR') renderCetakQR();
-  if(namaView === 'rekapLengkap') renderRekapLengkap();
 }
 
-// KOMUNIKASI SERVER FAST API
+// KOMUNIKASI SERVER API
 function callServer(funcName, param, callback) {
   tampilkanLoader("Menghubungkan Server...");
   let fullUrl = SCRIPT_URL + "?mode=api&fn=" + funcName + (param ? "&data=" + encodeURIComponent(JSON.stringify(param)) : "");
@@ -394,14 +386,13 @@ function callServer(funcName, param, callback) {
     });
 }
 
-// LOGIKA OTENTIKASI & DASHBOARD
 function prosesLogin() {
   let email = document.getElementById('inputLoginEmail').value;
   let pin = document.getElementById('inputLoginPin').value;
   if(!email || !pin) return tampilNotifikasi("Email dan PIN wajib diisi!");
   
   callServer("cekLogin", {email: email, pin: pin}, function(res) {
-    if(res.success) {
+    if(res && res.success) {
       currentUserEmail = email;
       document.getElementById('lblAkunAktif').innerText = email;
       loadAppData();
@@ -411,136 +402,157 @@ function prosesLogin() {
 
 function loadAppData() {
   callServer("getAppData", null, function(data) {
-    globalData = data;
-    document.getElementById('settingNominalIuran').value = data.setting.iuran;
+    if(data) {
+      globalData = data;
+      if(data.setting && data.setting.iuran) {
+        document.getElementById('settingNominalIuran').value = data.setting.iuran;
+      }
+    }
     gantiView('dashboard');
   });
 }
 
 function renderDashboard() {
   let inTotal = 0, outTotal = 0;
-  globalData.riwayat.forEach(r => {
-    if(r.jenis === 'Masuk') inTotal += r.nominalAsli;
-    else outTotal += r.nominalAsli;
-  });
+  if(globalData.riwayat && Array.isArray(globalData.riwayat)) {
+    globalData.riwayat.forEach(r => {
+      if(r.jenis === 'Masuk') inTotal += (r.nominalAsli || 0);
+      else outTotal += (r.nominalAsli || 0);
+    });
+  }
   document.getElementById('saldoAwal').innerText = "Rp " + (inTotal - outTotal).toLocaleString('id-ID');
   document.getElementById('totMasuk').innerText = "Rp " + inTotal.toLocaleString('id-ID');
   document.getElementById('totKeluar').innerText = "Rp " + outTotal.toLocaleString('id-ID');
 
   let listHtml = "";
-  globalData.riwayat.slice(-5).reverse().forEach(r => {
-    listHtml += `<div class="trx-item"><b>${r.tanggal}</b> - [${r.kategori}] ${r.noRumah} (${r.warga})<br>${r.uraian}: <b>Rp ${r.nominalAsli.toLocaleString('id-ID')}</b></div>`;
-  });
+  if(globalData.riwayat && globalData.riwayat.length > 0) {
+    globalData.riwayat.slice(-5).reverse().forEach(r => {
+      listHtml += `<div class="trx-item"><b>${r.tanggal}</b> - [${r.kategori}] ${r.noRumah} (${r.warga})<br>${r.uraian}: <b>Rp ${(r.nominalAsli||0).toLocaleString('id-ID')}</b></div>`;
+    });
+  }
   document.getElementById('listRiwayatPendek').innerHTML = listHtml || "Belum ada riwayat.";
 
   let sel = document.getElementById('opsiWarga');
   sel.innerHTML = "";
-  globalData.warga.forEach(w => sel.innerHTML += `<option value="${w.no}">${w.no} - ${w.nama}</option>`);
+  if(globalData.warga && Array.isArray(globalData.warga)) {
+    globalData.warga.forEach(w => sel.innerHTML += `<option value="${w.no}">${w.no} - ${w.nama}</option>`);
+  }
 }
 
-// PENGATURAN
 function toggleSettingIuran() {
   let p = document.getElementById('panelSettingIuran');
   let i = document.getElementById('ikonToggleSetting');
   if(p.style.display === 'none') { p.style.display = 'block'; i.innerText = '-'; }
   else { p.style.display = 'none'; i.innerText = '+'; }
 }
+
 function simpanSettingIuran() {
-  callServer("updateSettingIuran", {nominal: document.getElementById('settingNominalIuran').value}, d => { globalData = d; tampilNotifikasi("Nominal Disimpan!"); });
+  callServer("updateSettingIuran", {nominal: document.getElementById('settingNominalIuran').value}, d => { 
+    if(d) globalData = d; 
+    tampilNotifikasi("Nominal Disimpan!"); 
+  });
 }
+
 function prosesGantiEmailPIN() {
-  let em = document.getElementById('inputGantiEmail').value; let pn = document.getElementById('inputGantiPin').value;
+  let em = document.getElementById('inputGantiEmail').value;
+  let pn = document.getElementById('inputGantiPin').value;
   if(pn.length < 4) return tampilNotifikasi("PIN minimal 4 karakter!");
-  callServer("gantiEmailDanPINAkun", {oldEmail: currentUserEmail, newEmail: em, newPin: pn}, res => { if(res.success) { currentUserEmail = em; tampilNotifikasi("Akun diperbarui!"); } });
+  callServer("gantiEmailDanPINAkun", {oldEmail: currentUserEmail, newEmail: em, newPin: pn}, res => { 
+    if(res && res.success) { currentUserEmail = em; tampilNotifikasi("Akun diperbarui!"); } 
+  });
 }
+
 function resetSemuaData() {
   if(prompt("Ketik 'HAPUS' untuk reset semua data:") === "HAPUS") {
     callServer("resetSemuaData", {pass: "HAPUS"}, d => { if(d) { globalData = d; renderDashboard(); tampilNotifikasi("Data direset!"); } });
   }
 }
 
-// TRANSAKSI
 function bukaFormTrxBaru() {
   document.getElementById('formSection').style.display = 'block';
-  document.getElementById('trxNominal').value = globalData.setting.iuran;
+  document.getElementById('trxNominal').value = (globalData.setting ? globalData.setting.iuran : 50000);
   document.getElementById('tanggal').value = new Date().toISOString().split('T')[0];
   document.getElementById('trxUraian').value = "";
 }
 function tutupForm() { document.getElementById('formSection').style.display = 'none'; }
+
 function submitTransaksi(e) {
   e.preventDefault();
+  let selWarga = document.getElementById('opsiWarga');
+  if(!selWarga.options[selWarga.selectedIndex]) return tampilNotifikasi("Pilih warga terlebih dahulu!");
+  
   let trx = {
     tanggal: document.getElementById('tanggal').value,
     jenis: document.getElementById('trxJenis').value,
     kategori: document.getElementById('trxKategori').value,
-    noRumah: document.getElementById('opsiWarga').value,
-    warga: document.getElementById('opsiWarga').options[document.getElementById('opsiWarga').selectedIndex].text.split(' - ')[1],
+    noRumah: selWarga.value,
+    warga: selWarga.options[selWarga.selectedIndex].text.split(' - ')[1] || "",
     uraian: document.getElementById('trxUraian').value,
-    nominalAsli: parseFloat(document.getElementById('trxNominal').value)
+    nominalAsli: parseFloat(document.getElementById('trxNominal').value) || 0
   };
-  callServer("simpanTransaksi", trx, d => { globalData = d; renderDashboard(); tutupForm(); tampilNotifikasi("Transaksi Berhasil!"); });
+  callServer("simpanTransaksi", trx, d => { 
+    if(d) globalData = d; 
+    renderDashboard(); 
+    tutupForm(); 
+    tampilNotifikasi("Transaksi Berhasil!"); 
+  });
 }
 
-// ==========================================
-// FITUR SCANNER QR LIVE KAMERA & GAMBAR
-// ==========================================
-let html5QrCode;
-
+// SCANNER QR KAMERA / GALERI
 function bukaScanner() {
   gantiView('scannerQR');
-  if(!html5QrCode) html5QrCode = new Html5Qrcode("reader");
-  
-  // Nyalakan Kamera Belakang
-  html5QrCode.start(
-    { facingMode: "environment" },
-    { fps: 10, qrbox: { width: 250, height: 250 } },
-    (decodedText, decodedResult) => {
-      // Jika berhasil terbaca, stop kamera dan proses
-      html5QrCode.stop().then(() => {
-        prosesHasilScanQR(decodedText);
+  try {
+    if(typeof Html5Qrcode !== 'undefined') {
+      if(!html5QrCode) html5QrCode = new Html5Qrcode("reader");
+      html5QrCode.start(
+        { facingMode: "environment" },
+        { fps: 10, qrbox: { width: 250, height: 250 } },
+        (decodedText) => {
+          html5QrCode.stop().then(() => prosesHasilScanQR(decodedText)).catch(() => prosesHasilScanQR(decodedText));
+        },
+        () => {}
+      ).catch(() => {
+        document.getElementById('reader').innerHTML = '<p style="color:red; font-size:12px; padding:10px;">Akses kamera tidak diizinkan. Gunakan tombol pilih gambar di bawah.</p>';
       });
-    },
-    (errorMessage) => { /* Abaikan error latar saat belum menemukan QR */ }
-  ).catch(err => {
-    document.getElementById('reader').innerHTML = '<p style="color:red; font-size:13px; padding:10px;">Gagal mengakses kamera. Silakan gunakan tombol "Pilih Gambar QR dari Galeri HP" di bawah.</p>';
-  });
+    } else {
+      document.getElementById('reader').innerHTML = '<p style="color:orange; font-size:12px; padding:10px;">Mode kamera galeri aktif.</p>';
+    }
+  } catch(e) {
+    console.error("Scanner Error:", e);
+  }
 }
 
 function tutupScanner() {
   if(html5QrCode && html5QrCode.isScanning) {
-      html5QrCode.stop().then(() => gantiView('dashboard')).catch(() => gantiView('dashboard'));
+    html5QrCode.stop().then(() => gantiView('dashboard')).catch(() => gantiView('dashboard'));
   } else {
-      gantiView('dashboard');
+    gantiView('dashboard');
   }
 }
 
-// Scan via Upload File Galeri
 function scanFileQRSensitive(input) {
   if (input.files && input.files.length > 0) {
-    if(!html5QrCode) html5QrCode = new Html5Qrcode("reader");
-    html5QrCode.scanFile(input.files[0], true)
-    .then(decodedText => {
-      if(html5QrCode.isScanning) html5QrCode.stop();
-      prosesHasilScanQR(decodedText);
-    })
-    .catch(err => {
-      tampilNotifikasi("QR Code tidak terdeteksi pada gambar yang diunggah.");
-    });
+    if(typeof Html5Qrcode !== 'undefined') {
+      if(!html5QrCode) html5QrCode = new Html5Qrcode("reader");
+      html5QrCode.scanFile(input.files[0], true)
+      .then(decodedText => prosesHasilScanQR(decodedText))
+      .catch(() => tampilNotifikasi("QR Code tidak terbaca dari foto ini."));
+    } else {
+      tampilNotifikasi("Library scanner belum terisi penuh.");
+    }
   }
 }
 
-// Memproses Kode yang ditemukan ke Tampilan Profil
 function prosesHasilScanQR(noRumahRaw) {
-    let noRumah = noRumahRaw.trim();
-    let w = globalData.warga.find(item => item.no.toString() === noRumah);
-    if(w) {
-        tampilProfilWarga(w.no);
-    } else {
-        tampilNotifikasi("Peringatan: Data warga dengan No Rumah '" + noRumah + "' tidak ditemukan di sistem!");
-    }
+  let noRumah = (noRumahRaw || "").trim();
+  let w = globalData.warga ? globalData.warga.find(item => item.no.toString() === noRumah) : null;
+  if(w) {
+    tampilProfilWarga(w.no);
+  } else {
+    tampilNotifikasi("Nomor Rumah '" + noRumah + "' tidak ditemukan di database warga!");
+  }
 }
 
-// Menampilkan Riwayat & Kas Saat di Scan
 function tampilProfilWarga(no) {
   currentProfilNo = no;
   let w = globalData.warga.find(item => item.no.toString() === no.toString());
@@ -549,9 +561,8 @@ function tampilProfilWarga(no) {
   document.getElementById('profNama').innerText = w.nama;
   document.getElementById('profNo').innerText = "No Rumah: " + w.no;
 
-  // Cek Status Iuran Bulan Ini
   let curMonth = new Date().toISOString().slice(0,7);
-  let isPaid = globalData.riwayat.some(r => r.noRumah.toString() === no.toString() && r.kategori === 'Iuran Bulanan' && r.tanggal.startsWith(curMonth));
+  let isPaid = globalData.riwayat ? globalData.riwayat.some(r => r.noRumah.toString() === no.toString() && r.kategori === 'Iuran Bulanan' && r.tanggal.startsWith(curMonth)) : false;
 
   let box = document.getElementById('profStatusBox');
   let statusText = document.getElementById('profStatus');
@@ -565,75 +576,86 @@ function tampilProfilWarga(no) {
      statusText.innerText = "BELUM BAYAR";
   }
 
-  // Riwayat Terdahulu
   let histHtml = "";
-  globalData.riwayat.filter(r => r.noRumah.toString() === no.toString()).slice(-5).reverse().forEach(r => {
-     histHtml += `<li><span>${r.tanggal} - ${r.kategori}</span> <b>Rp ${r.nominalAsli.toLocaleString('id-ID')}</b></li>`;
-  });
+  if(globalData.riwayat) {
+    globalData.riwayat.filter(r => r.noRumah.toString() === no.toString()).slice(-5).reverse().forEach(r => {
+       histHtml += `<li><span>${r.tanggal} - ${r.kategori}</span> <b>Rp ${(r.nominalAsli||0).toLocaleString('id-ID')}</b></li>`;
+    });
+  }
   document.getElementById('profRiwayat').innerHTML = histHtml || "<li>Belum ada riwayat transaksi.</li>";
 
   gantiView('profilScan');
 }
 
 function bayarKasDariProfil() {
-    gantiView('dashboard');
-    bukaFormTrxBaru();
-    document.getElementById('opsiWarga').value = currentProfilNo;
+  gantiView('dashboard');
+  bukaFormTrxBaru();
+  document.getElementById('opsiWarga').value = currentProfilNo;
 }
 
-// ==========================================
-// WARGA, LAPORAN & CETAK
-// ==========================================
 function renderWarga() {
   let h = "<table><tr><th>No Rumah</th><th>Nama</th><th>Aksi</th></tr>";
-  globalData.warga.forEach(w => { h += `<tr><td>${w.no}</td><td>${w.nama}</td><td><button onclick="hapusWarga('${w.no}')" style="background:#C62828;color:white;border:none;padding:5px;border-radius:4px;">Hapus</button></td></tr>`; });
+  if(globalData.warga && Array.isArray(globalData.warga)) {
+    globalData.warga.forEach(w => { h += `<tr><td>${w.no}</td><td>${w.nama}</td><td><button onclick="hapusWarga('${w.no}')" style="background:#C62828;color:white;border:none;padding:5px;border-radius:4px;">Hapus</button></td></tr>`; });
+  }
   document.getElementById('tabelWargaContainer').innerHTML = h + "</table>";
 }
+
 function bukaFormTambahWarga() {
   let no = prompt("No Rumah:"); let nm = prompt("Nama:");
-  if(no && nm) callServer("simpanWargaBaru", {no:no, nama:nm}, d => { globalData = d; renderWarga(); });
+  if(no && nm) callServer("simpanWargaBaru", {no:no, nama:nm}, d => { if(d) globalData = d; renderWarga(); });
 }
-function hapusWarga(no) { if(confirm("Hapus "+no+"?")) callServer("hapusWarga", {no:no}, d => { globalData = d; renderWarga(); }); }
+function hapusWarga(no) { if(confirm("Hapus "+no+"?")) callServer("hapusWarga", {no:no}, d => { if(d) globalData = d; renderWarga(); }); }
 
 function renderLaporan() {
   let inTot = 0, outTot = 0;
-  globalData.riwayat.forEach(r => { if(r.jenis === 'Masuk') inTot += r.nominalAsli; else outTot += r.nominalAsli; });
+  if(globalData.riwayat) {
+    globalData.riwayat.forEach(r => { if(r.jenis === 'Masuk') inTot += (r.nominalAsli||0); else outTot += (r.nominalAsli||0); });
+  }
   document.getElementById('laporanContainer').innerHTML = `<p><b>Total Pemasukan:</b> Rp ${inTot.toLocaleString('id-ID')}</p><p><b>Total Pengeluaran:</b> Rp ${outTot.toLocaleString('id-ID')}</p><p><b>Saldo Bersih:</b> Rp ${(inTot - outTot).toLocaleString('id-ID')}</p>`;
 }
 
 function renderRekapLengkap() {
   let h = "";
-  globalData.riwayat.slice().reverse().forEach(r => {
-    h += `<div class="trx-item"><b>${r.tanggal}</b> - [${r.kategori}] ${r.noRumah} (${r.warga})<br>${r.uraian}: <b>Rp ${r.nominalAsli.toLocaleString('id-ID')}</b></div>`;
-  });
+  if(globalData.riwayat && globalData.riwayat.length > 0) {
+    globalData.riwayat.slice().reverse().forEach(r => {
+      h += `<div class="trx-item"><b>${r.tanggal}</b> - [${r.kategori}] ${r.noRumah} (${r.warga})<br>${r.uraian}: <b>Rp ${(r.nominalAsli||0).toLocaleString('id-ID')}</b></div>`;
+    });
+  }
   document.getElementById('listRiwayatLengkap').innerHTML = h || "Tidak ada data.";
 }
 
 function renderScanManualList() {
   let h = "";
-  globalData.warga.forEach(w => h += `<div style="padding:10px;border-bottom:1px solid #eee; cursor:pointer;" onclick="tampilProfilWarga('${w.no}')"><b>${w.no}</b> - ${w.nama}</div>`);
+  if(globalData.warga) {
+    globalData.warga.forEach(w => h += `<div style="padding:10px;border-bottom:1px solid #eee; cursor:pointer;" onclick="tampilProfilWarga('${w.no}')"><b>${w.no}</b> - ${w.nama}</div>`);
+  }
   document.getElementById('hasilCariManual').innerHTML = h;
 }
+
 function filterCariManual() {
   let q = document.getElementById('inputCariManual').value.toLowerCase(); let h = "";
-  globalData.warga.filter(w => w.nama.toLowerCase().includes(q) || w.no.toLowerCase().includes(q)).forEach(w => {
-    h += `<div style="padding:10px;border-bottom:1px solid #eee; cursor:pointer;" onclick="tampilProfilWarga('${w.no}')"><b>${w.no}</b> - ${w.nama}</div>`;
-  });
+  if(globalData.warga) {
+    globalData.warga.filter(w => w.nama.toLowerCase().includes(q) || w.no.toLowerCase().includes(q)).forEach(w => {
+      h += `<div style="padding:10px;border-bottom:1px solid #eee; cursor:pointer;" onclick="tampilProfilWarga('${w.no}')"><b>${w.no}</b> - ${w.nama}</div>`;
+    });
+  }
   document.getElementById('hasilCariManual').innerHTML = h;
 }
 
 function renderCetakQR() {
   let h = "";
-  globalData.warga.forEach(w => {
-    let qrUrl = "https://quickchart.io/qr?text=" + encodeURIComponent(w.no) + "&size=150";
-    h += `<div class="cetak-card"><div class="c-nama">${w.nama}</div><div class="c-no">No. ${w.no}</div><img src="${qrUrl}" alt="QR"><div style="font-size:9px;margin-top:2px;">Scan untuk Cek Kas</div></div>`;
-  });
+  if(globalData.warga) {
+    globalData.warga.forEach(w => {
+      let qrUrl = "https://quickchart.io/qr?text=" + encodeURIComponent(w.no) + "&size=150";
+      h += `<div class="cetak-card"><div class="c-nama">${w.nama}</div><div class="c-no">No. ${w.no}</div><img src="${qrUrl}" alt="QR"><div style="font-size:9px;margin-top:2px;">Scan untuk Cek Kas</div></div>`;
+    });
+  }
   document.getElementById('cetakQRContainer').innerHTML = h;
 }
 
-// LUPA PIN
-function kirimOTPLupaPin() { callServer("kirimOTPReal", {email: document.getElementById('inputLupaEmail').value}, r => { if(r.success) gantiView('verifikasiOTP'); else tampilNotifikasi(r.msg); }); }
-function verifikasiDanResetPIN() { callServer("verifikasiOTPDanGantiPIN", {email:document.getElementById('inputLupaEmail').value, otp:document.getElementById('inputOTP').value, pinBaru:document.getElementById('inputPinBaru').value}, r => { if(r.success) { gantiView('login'); tampilNotifikasi("PIN Berhasil direset!"); } else tampilNotifikasi(r.msg); }); }
+function kirimOTPLupaPin() { callServer("kirimOTPReal", {email: document.getElementById('inputLupaEmail').value}, r => { if(r && r.success) gantiView('verifikasiOTP'); else tampilNotifikasi(r ? r.msg : "Gagal"); }); }
+function verifikasiDanResetPIN() { callServer("verifikasiOTPDanGantiPIN", {email:document.getElementById('inputLupaEmail').value, otp:document.getElementById('inputOTP').value, pinBaru:document.getElementById('inputPinBaru').value}, r => { if(r && r.success) { gantiView('login'); tampilNotifikasi("PIN Berhasil direset!"); } else tampilNotifikasi(r ? r.msg : "Gagal"); }); }
 </script>
 </body>
 </html>
