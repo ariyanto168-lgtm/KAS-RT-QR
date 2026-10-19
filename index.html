@@ -118,7 +118,7 @@ input, select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radiu
 
 <div class="header no-print">
   <h2 id="judulApp">Kas RT Mobile</h2>
-  <div id="headerVersionInfo" class="header-version">Versi 1.0.9</div>
+  <div id="headerVersionInfo" class="header-version">Versi 1.1.1</div>
 </div>
 
 <!-- VIEW 1: LOGIN -->
@@ -283,7 +283,8 @@ input, select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radiu
 
 <!-- VIEW 10: PROFIL SCAN HASIL -->
 <div id="viewProfilScan" class="app-view no-print" style="display:none;">
-  <button class="btn-utama btn-kembali" onclick="gantiView('dashboard')">Kembali ke Dashboard</button>
+  <button class="btn-utama btn-kembali id-admin-only" onclick="gantiView('dashboard')">Kembali ke Dashboard</button>
+  <button class="btn-utama btn-kembali id-public-only" style="display:none; background:#00695C;" onclick="gantiView('laporan')">Kembali ke Laporan Publik</button>
   <div class="card qr-card">
      <div class="qr-header">Profil Kas Warga</div>
      <img id="profQrImg" src="" style="width: 140px; height: 140px; margin: 10px auto 15px; display: block; border-radius: 8px; border: 2px dashed #4CAF50; padding: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
@@ -322,7 +323,7 @@ if ('serviceWorker' in navigator) {
 
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyr7JlYtzVdUcSA1YHcdOt-qyCpfrnRG3-7WoC12v7pOB7UG7qbpfNKVEtuegebXfOl/exec"; 
 
-let globalData = { warga: [], riwayat: [], setting: { iuran: 50000 } };
+let globalData = { warga: [], riwayat: [], setting: { iuran: 50000, kategori: ["Iuran Bulanan", "Sosial", "Kematian", "Kerja Bakti", "Iuran Darurat", "Jimpitan", "Pindah Saldo"] } };
 let currentUserEmail = "";
 let currentProfilNo = "";
 let html5QrCode = null;
@@ -335,6 +336,7 @@ window.addEventListener('DOMContentLoaded', () => {
   if (urlParams.get('mode') === 'publik') {
     isPublicMode = true;
     document.querySelectorAll('.id-admin-only').forEach(el => el.style.display = 'none');
+    document.querySelectorAll('.id-public-only').forEach(el => el.style.display = 'block');
     
     let headerInfo = document.getElementById('headerVersionInfo');
     headerInfo.innerHTML = `<button class="btn-login-admin" onclick="window.location.href=window.location.pathname">🔑 Login Admin</button>`;
@@ -346,7 +348,6 @@ window.addEventListener('DOMContentLoaded', () => {
   }
 });
 
-// FUNGSI UI LOADER & MODAL MODERN
 function tampilkanLoader(teks) {
   document.getElementById('loaderText').innerText = teks || "Memproses...";
   document.getElementById('loaderOverlay').style.display = 'flex';
@@ -453,15 +454,18 @@ function loadAppData() {
 }
 
 function dapatkanDaftarKategoriUnik() {
-  let defaultKats = ["Iuran Bulanan", "Sosial", "Kematian", "Kerja Bakti", "Iuran Darurat", "Jimpitan", "Pindah Saldo"];
+  let kats = (globalData.setting && globalData.setting.kategori) 
+    ? [...globalData.setting.kategori] 
+    : ["Iuran Bulanan", "Sosial", "Kematian", "Kerja Bakti", "Iuran Darurat", "Jimpitan", "Pindah Saldo"];
+    
   if(globalData.riwayat && Array.isArray(globalData.riwayat)) {
     globalData.riwayat.forEach(r => {
-      if(r.kategori && !defaultKats.includes(r.kategori)) {
-        defaultKats.push(r.kategori);
+      if(r.kategori && !kats.includes(r.kategori)) {
+        kats.push(r.kategori);
       }
     });
   }
-  return defaultKats;
+  return kats;
 }
 
 function renderDashboard() {
@@ -683,7 +687,6 @@ function bukaModalEditKategori(oldName) {
   });
 }
 
-// LAPORAN PUBLIK (DROPDOWN WARGA DI PANEL & EDIT NAMA KATEGORI ADMIN)
 function renderLaporan() {
   let inTot = 0, outTot = 0;
   let katMasuk = {}; let katKeluar = {}; let katRiwayat = {};
@@ -723,7 +726,6 @@ function renderLaporan() {
             </div>
             <div id="${catId}" style="display:none; padding:10px 15px; font-size:12px; border-top:1px solid #eee; background:#fafafa;">`;
     
-    // DROPDOWN NAMA WARGA UNTUK KATEGORI IURAN BULANAN (TAMPIL DI PUBLIK & ADMIN)
     if(k.toLowerCase().includes("iuran bulanan") || k.toLowerCase().includes("bulanan")) {
       h += `<div style="margin-bottom:12px; background:#E8F5E9; padding:8px; border-radius:6px; border:1px solid #C8E6C9;">
               <label style="margin-top:0; color:#2E7D32; font-size:11px;">🔍 Cek Status Bayar Per Warga:</label>
@@ -792,7 +794,6 @@ function shareLaporanWA() {
   window.open("https://api.whatsapp.com/send?text=" + encodeURIComponent(text), '_blank');
 }
 
-// MANAJEMEN DATA WARGA (MODERN MODAL)
 function renderWarga() {
   let h = `<table><tr><th style="width:40%;">No / Nama</th><th style="width:35%;">Status Iuran</th><th style="width:25%;">Aksi</th></tr>`;
   if(globalData.warga) {
