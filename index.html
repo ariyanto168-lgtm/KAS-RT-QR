@@ -14,7 +14,6 @@
 body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f0f2f5; margin: 0; padding: 15px; }
 .header { text-align: center; color: #2E7D32; margin-bottom: 15px; }
 .header-version { font-size: 11px; color: #666; font-weight: bold; margin-top: 2px; letter-spacing: 1px; }
-.btn-login-admin { display: inline-block; background: #FF9800; color: white; padding: 4px 10px; border-radius: 12px; font-size: 11px; text-decoration: none; cursor: pointer; border: none; font-weight: bold; margin-top: 5px; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
 .card { background: white; padding: 15px; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 15px; }
 .saldo-box { text-align: center; background: #E3F2FD; border: 1px solid #BBDEFB; }
 h2, h3, h4 { margin: 0 0 10px 0; }
@@ -131,8 +130,8 @@ input, select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radiu
 
 <div class="header no-print">
   <h2 id="judulApp">Kas RT Mobile</h2>
-  <div id="headerVersionInfo" class="header-version">Versi 1.1.4</div>
-  <div style="font-size: 11px; color: #777; font-weight: bold; margin-top: 3px; letter-spacing: 0.5px;">Powered By Ari GPM</div>
+  <div id="headerVersionInfo" class="header-version">Versi 1.1.5</div>
+  <div id="brandingFooter" style="font-size: 11px; color: #777; font-weight: bold; margin-top: 3px; letter-spacing: 0.5px; cursor: pointer;" onclick="window.location.href=window.location.pathname">Powered By Ari GPM</div>
 </div>
 
 <!-- VIEW 1: LOGIN -->
@@ -354,9 +353,6 @@ window.addEventListener('DOMContentLoaded', () => {
     isPublicMode = true;
     document.querySelectorAll('.id-admin-only').forEach(el => el.style.display = 'none');
     document.querySelectorAll('.id-public-only').forEach(el => el.style.display = 'block');
-    
-    let headerInfo = document.getElementById('headerVersionInfo');
-    headerInfo.innerHTML = `Versi 1.1.4 | <button class="btn-login-admin" onclick="window.location.href=window.location.pathname">🔑 Login Admin</button>`;
     
     callServer("getAppData", null, function(data) {
       if(data) globalData = data;
