@@ -360,4 +360,119 @@ function renderDashboard() {
 }
 
 function toggleSettingIuran() {
-  let p = document.getElement
+  let p = document.getElementById('panelSettingIuran');
+  let i = document.getElementById('ikonToggleSetting');
+  if(p.style.display === 'none') { p.style.display = 'block'; i.innerText = '-'; }
+  else { p.style.display = 'none'; i.innerText = '+'; }
+}
+
+function simpanSettingIuran() {
+  let nom = document.getElementById('settingNominalIuran').value;
+  callServer("updateSettingIuran", {nominal: nom}, function(d) {
+    globalData = d;
+    tampilNotifikasi("Nominal Iuran Disimpan!");
+  });
+}
+
+function prosesGantiEmailPIN() {
+  let em = document.getElementById('inputGantiEmail').value;
+  let pn = document.getElementById('inputGantiPin').value;
+  if(pn.length < 4) return tampilNotifikasi("PIN minimal 4 karakter!");
+  callServer("gantiEmailDanPINAkun", {oldEmail: currentUserEmail, newEmail: em, newPin: pn}, function(res) {
+    if(res.success) { currentUserEmail = em; tampilNotifikasi("Akun diperbarui!"); }
+  });
+}
+
+function resetSemuaData() {
+  let conf = prompt("Ketik 'HAPUS' untuk reset semua data:");
+  if(conf === "HAPUS") {
+    callServer("resetSemuaData", {pass: "HAPUS"}, function(d) {
+      if(d) { globalData = d; renderDashboard(); tampilNotifikasi("Data berhasil direset!"); }
+    });
+  }
+}
+
+// TRANSAKSI
+function bukaFormTrxBaru() {
+  document.getElementById('formSection').style.display = 'block';
+  document.getElementById('trxNominal').value = globalData.setting.iuran;
+  document.getElementById('tanggal').value = new Date().toISOString().split('T')[0];
+}
+function tutupForm() { document.getElementById('formSection').style.display = 'none'; }
+function submitTransaksi(e) {
+  e.preventDefault();
+  let trx = {
+    tanggal: document.getElementById('tanggal').value,
+    jenis: document.getElementById('trxJenis').value,
+    kategori: document.getElementById('trxKategori').value,
+    noRumah: document.getElementById('opsiWarga').value,
+    warga: document.getElementById('opsiWarga').options[document.getElementById('opsiWarga').selectedIndex].text.split(' - ')[1],
+    uraian: document.getElementById('trxUraian').value,
+    nominalAsli: parseFloat(document.getElementById('trxNominal').value)
+  };
+  callServer("simpanTransaksi", trx, function(d) {
+    globalData = d; renderDashboard(); tutupForm(); tampilNotifikasi("Transaksi Berhasil!");
+  });
+}
+
+// WARGA & MANUAL SCAN
+function renderWarga() {
+  let h = "<table><tr><th>No Rumah</th><th>Nama</th><th>Aksi</th></tr>";
+  globalData.warga.forEach(w => {
+    h += `<tr><td>${w.no}</td><td>${w.nama}</td><td><button onclick="hapusWarga('${w.no}')" style="background:#C62828;color:white;border:none;padding:5px;border-radius:4px;">Hapus</button></td></tr>`;
+  });
+  document.getElementById('tabelWargaContainer').innerHTML = h + "</table>";
+}
+function bukaFormTambahWarga() {
+  let no = prompt("No Rumah:"); let nm = prompt("Nama:");
+  if(no && nm) callServer("simpanWargaBaru", {no:no, nama:nm}, d => { globalData = d; renderWarga(); });
+}
+function hapusWarga(no) {
+  if(confirm("Hapus "+no+"?")) callServer("hapusWarga", {no:no}, d => { globalData = d; renderWarga(); });
+}
+function bukaScanManual() { gantiView('scanManual'); }
+function renderScanManualList() {
+  let h = "";
+  globalData.warga.forEach(w => h += `<div style="padding:10px;border-bottom:1px solid #eee;" onclick="tampilNotifikasi('Warga Dipilih: ${w.nama}')"><b>${w.no}</b> - ${w.nama}</div>`);
+  document.getElementById('hasilCariManual').innerHTML = h;
+}
+function filterCariManual() {
+  let q = document.getElementById('inputCariManual').value.toLowerCase();
+  let h = "";
+  globalData.warga.filter(w => w.nama.toLowerCase().includes(q) || w.no.toLowerCase().includes(q)).forEach(w => {
+    h += `<div style="padding:10px;border-bottom:1px solid #eee;" onclick="tampilNotifikasi('Warga Dipilih: ${w.nama}')"><b>${w.no}</b> - ${w.nama}</div>`;
+  });
+  document.getElementById('hasilCariManual').innerHTML = h;
+}
+
+// CETAK QR (THERMAL 58mm) Sesuai Kerangka
+function renderCetakQR() {
+  let h = "";
+  globalData.warga.forEach(w => {
+    let qrUrl = "https://quickchart.io/qr?text=" + encodeURIComponent(w.no) + "&size=150";
+    h += `<div class="cetak-card">
+            <div class="c-nama">${w.nama}</div>
+            <div class="c-no">No. ${w.no}</div>
+            <img src="${qrUrl}" alt="QR">
+            <div style="font-size:9px;margin-top:2px;">Scan untuk Cek Kas</div>
+          </div>`;
+  });
+  document.getElementById('cetakQRContainer').innerHTML = h;
+}
+
+// LUPA PIN
+function kirimOTPLupaPin() {
+  let em = document.getElementById('inputLupaEmail').value;
+  callServer("kirimOTPReal", {email: em}, r => { if(r.success) gantiView('verifikasiOTP'); else tampilNotifikasi(r.msg); });
+}
+function verifikasiDanResetPIN() {
+  let em = document.getElementById('inputLupaEmail').value;
+  let otp = document.getElementById('inputOTP').value;
+  let pin = document.getElementById('inputPinBaru').value;
+  callServer("verifikasiOTPDanGantiPIN", {email:em, otp:otp, pinBaru:pin}, r => {
+    if(r.success) { gantiView('login'); tampilNotifikasi("PIN Berhasil direset!"); } else tampilNotifikasi(r.msg);
+  });
+}
+</script>
+</body>
+</html>
