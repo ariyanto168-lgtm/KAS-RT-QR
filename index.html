@@ -130,7 +130,7 @@ input, select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radiu
 
 <div class="header no-print">
   <h2 id="judulApp">Kas RT Mobile</h2>
-  <div id="headerVersionInfo" class="header-version">Versi 1.1.5</div>
+  <div id="headerVersionInfo" class="header-version">Versi 1.1.6</div>
   <div id="brandingFooter" style="font-size: 11px; color: #777; font-weight: bold; margin-top: 3px; letter-spacing: 0.5px; cursor: pointer;" onclick="window.location.href=window.location.pathname">Powered By Ari GPM</div>
 </div>
 
@@ -346,6 +346,14 @@ let isPublicMode = false;
 let currentEditTrxId = null;
 let singlePrintNo = null;
 
+// BACA CACHE LOCAL STORAGE PERTAMA KALI SUPAYA CEPAT SAAT SINYAL MINIM
+try {
+  let localCache = localStorage.getItem('kas_rt_data');
+  if (localCache) {
+    globalData = JSON.parse(localCache);
+  }
+} catch(e) {}
+
 // DETEKSI MODE PUBLIK TRANPARANSI DARI URL
 window.addEventListener('DOMContentLoaded', () => {
   const urlParams = new URLSearchParams(window.location.search);
@@ -354,8 +362,16 @@ window.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('.id-admin-only').forEach(el => el.style.display = 'none');
     document.querySelectorAll('.id-public-only').forEach(el => el.style.display = 'block');
     
+    // Tampilkan data lokal dulu jika ada
+    if (globalData && globalData.riwayat && globalData.riwayat.length > 0) {
+      gantiView('laporan');
+    }
+    
     callServer("getAppData", null, function(data) {
-      if(data) globalData = data;
+      if(data) {
+        globalData = data;
+        localStorage.setItem('kas_rt_data', JSON.stringify(data));
+      }
       gantiView('laporan');
     });
   }
@@ -440,8 +456,29 @@ function gantiView(namaView) {
 function callServer(funcName, param, callback) {
   tampilkanLoader("Menghubungkan Server...");
   let fullUrl = SCRIPT_URL + "?mode=api&fn=" + funcName + (param ? "&data=" + encodeURIComponent(JSON.stringify(param)) : "");
-  fetch(fullUrl).then(res => res.json()).then(data => { sembunyikanLoader(); if(callback) callback(data); })
-  .catch(err => { sembunyikanLoader(); tampilNotifikasi("Koneksi gagal: " + err); });
+  
+  fetch(fullUrl)
+  .then(res => res.json())
+  .then(data => { 
+    sembunyikanLoader(); 
+    if(data && typeof data === 'object' && !data.error) {
+      if(funcName === "getAppData" || data.warga) {
+        localStorage.setItem('kas_rt_data', JSON.stringify(data));
+      }
+    }
+    if(callback) callback(data); 
+  })
+  .catch(err => { 
+    sembunyikanLoader(); 
+    let cached = localStorage.getItem('kas_rt_data');
+    if (cached && (funcName === "getAppData" || funcName === "cekLogin")) {
+      globalData = JSON.parse(cached);
+      if(callback) callback(globalData);
+      tampilNotifikasi("Sinyal lemah / Offline. Menampilkan data offline dari HP.", "Mode Offline Opsional");
+    } else {
+      tampilNotifikasi("Koneksi internet lemah / gagal: " + err); 
+    }
+  });
 }
 
 function prosesLogin() {
@@ -462,6 +499,7 @@ function loadAppData() {
   callServer("getAppData", null, function(data) {
     if(data) {
       globalData = data;
+      localStorage.setItem('kas_rt_data', JSON.stringify(data));
       if(data.setting && data.setting.iuran) document.getElementById('settingNominalIuran').value = data.setting.iuran;
     }
     gantiView('dashboard');
@@ -731,7 +769,7 @@ function downloadBackupGoogleSheet() {
   }
   let saldo = inTot - outTot;
 
-  let csvContent = "\uFEFF"; // UTF-8 BOM
+  let csvContent = "\uFEFF";
   
   csvContent += "=== BACKUP DATABASE KAS RT MOBILE ===\n";
   csvContent += `Waktu Backup,${now.toLocaleString('id-ID')}\n`;
@@ -776,7 +814,7 @@ function downloadBackupGoogleSheet() {
   }
 
   let blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-  let link = document.createElement("a");
+  link = document.createElement("a");
   let url = URL.createObjectURL(blob);
   link.setAttribute("href", url);
   link.setAttribute("download", `Backup_Kas_RT_${tglStr}.csv`);
@@ -785,6 +823,27 @@ function downloadBackupGoogleSheet() {
   document.body.removeChild(link);
   
   tampilNotifikasi("File backup database Kas RT berhasil diunduh! File CSV ini siap langsung dibuka di Google Sheets atau Excel.", "Backup Berhasil");
+}
+
+// FILTER CARI WARGA KHUSUS PADA LAPORAN PUBLIK IURAN BULANAN
+function filterWargaLaporan() {
+  let q = (document.getElementById('cariWargaLaporan').value || "").toLowerCase().trim();
+  let resDiv = document.getElementById('hasilCariWargaLaporan');
+  if (!q) { resDiv.style.display = 'none'; return; }
+  
+  let h = "";
+  if (globalData.warga) {
+    let filtered = globalData.warga.filter(w => w.nama.toLowerCase().includes(q) || w.no.toString().toLowerCase().includes(q));
+    if (filtered.length > 0) {
+      filtered.forEach(w => {
+        h += `<div style="padding:8px 10px; border-bottom:1px solid #eee; cursor:pointer; font-size:12px; font-weight:bold; color:#1565C0;" onclick="tampilProfilWarga('${w.no}')">🏠 No. ${w.no} - ${w.nama}</div>`;
+      });
+    } else {
+      h = `<div style="padding:8px; color:#888; font-size:11px;">Nama/No Rumah tidak ditemukan.</div>`;
+    }
+  }
+  resDiv.innerHTML = h;
+  resDiv.style.display = 'block';
 }
 
 // LAPORAN PUBLIK DENGAN KATEGORI 2 KOLOM SEJAJAR & WARNA-WARNI
@@ -843,12 +902,10 @@ function renderLaporan() {
             <div style="font-weight:bold; color:${col.text}; margin-bottom:8px; border-bottom:1px solid #eee; padding-bottom:4px; font-size:13px;">Rincian Transaksi: ${k}</div>`;
 
     if(k.toLowerCase().includes("iuran bulanan") || k.toLowerCase().includes("bulanan")) {
-      h += `<div style="margin-bottom:12px; background:#fff; padding:8px; border-radius:6px; border:1px solid #C8E6C9;">
-              <label style="margin-top:0; color:#2E7D32; font-size:11px;">🔍 Cek Status Bayar Per Warga:</label>
-              <select onchange="if(this.value) tampilProfilWarga(this.value)" style="font-size:12px; padding:8px; margin-top:4px; border-color:#4CAF50; background:white;">
-                <option value="">-- Pilih Nama Warga --</option>
-                ${globalData.warga ? globalData.warga.map(w => `<option value="${w.no}">${w.no} -${w.nama}</option>`).join('') : ''}
-              </select>
+      h += `<div style="margin-bottom:12px; background:#fff; padding:10px; border-radius:8px; border:1px solid #C8E6C9;">
+              <label style="margin-top:0; color:#2E7D32; font-size:11px;">🔍 Cari Status Bayar Per Warga:</label>
+              <input type="text" id="cariWargaLaporan" placeholder="Ketik nama atau no rumah..." onkeyup="filterWargaLaporan()" style="font-size:12px; padding:8px; margin-top:4px; border:1px solid #4CAF50; border-radius:6px; background:white;">
+              <div id="hasilCariWargaLaporan" style="max-height:160px; overflow-y:auto; margin-top:5px; border-top:1px dashed #ccc; display:none; background:#fafafa; border-radius:4px;"></div>
             </div>`;
     }
 
