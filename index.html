@@ -49,6 +49,12 @@ input, select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radiu
 .spinner { border: 4px solid #f3f3f3; border-top: 4px solid #2E7D32; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
 @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
+/* GRID KATEGORI 2 KOLOM */
+.kat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
+.kat-card { border-radius: 8px; padding: 12px 10px; text-align: center; border: 1px solid; cursor: pointer; transition: transform 0.1s; display: flex; flex-direction: column; justify-content: space-between; min-height: 85px; box-sizing: border-box; }
+.kat-card:active { transform: scale(0.97); }
+.kat-detail-box { grid-column: 1 / -1; background: white; padding: 12px; border-radius: 8px; border: 1px solid #ccc; font-size: 12px; margin-top: -2px; margin-bottom: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+
 /* CUSTOM MODAL POP-UP MODERN */
 #customModalOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; display: none; justify-content: center; align-items: center; padding: 20px; box-sizing: border-box; }
 .custom-modal-box { background: white; width: 100%; max-width: 340px; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.2); overflow: hidden; animation: scaleIn 0.2s ease-out; }
@@ -118,7 +124,7 @@ input, select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radiu
 
 <div class="header no-print">
   <h2 id="judulApp">Kas RT Mobile</h2>
-  <div id="headerVersionInfo" class="header-version">Versi 1.1.1</div>
+  <div id="headerVersionInfo" class="header-version">Versi 1.1.2</div>
 </div>
 
 <!-- VIEW 1: LOGIN -->
@@ -287,8 +293,10 @@ input, select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radiu
   <button class="btn-utama btn-kembali id-public-only" style="display:none; background:#00695C;" onclick="gantiView('laporan')">Kembali ke Laporan Publik</button>
   <div class="card qr-card">
      <div class="qr-header">Profil Kas Warga</div>
-     <img id="profQrImg" src="" style="width: 140px; height: 140px; margin: 10px auto 15px; display: block; border-radius: 8px; border: 2px dashed #4CAF50; padding: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
+     <img id="profQrImg" src="" style="width: 140px; height: 140px; margin: 10px auto 10px; display: block; border-radius: 8px; border: 2px dashed #4CAF50; padding: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
      
+     <button class="btn-utama" style="background:#1565C0; font-size:12px; padding:8px 12px; margin-bottom:15px; width:auto; display:inline-block;" onclick="cetakQRPerorangan()">🖨️ Cetak QR Warga Ini</button>
+
      <div class="qr-warga-name" id="profNama">-</div>
      <div class="qr-warga-no" id="profNo">-</div>
      <div id="profStatusBox" class="qr-iuran-box">
@@ -631,6 +639,16 @@ function tampilProfilWarga(no) {
   gantiView('profilScan');
 }
 
+function cetakQRPerorangan() {
+  let w = globalData.warga.find(item => item.no.toString() === currentProfilNo.toString());
+  if(!w) return;
+  let qrUrl = "https://quickchart.io/qr?text=" + encodeURIComponent(w.no) + "&size=150";
+  let h = `<div class="cetak-card"><div class="c-nama">${w.nama}</div><div class="c-no">No. ${w.no}</div><img src="${qrUrl}" alt="QR"><div style="font-size:9px;margin-top:2px;">Scan untuk Cek Kas</div></div>`;
+  document.getElementById('cetakQRContainer').innerHTML = h;
+  gantiView('cetakQR');
+  setTimeout(() => { window.print(); }, 300);
+}
+
 function bayarKasDariProfil() { gantiView('dashboard'); bukaFormTrxBaru(); document.getElementById('opsiWarga').value = currentProfilNo; }
 
 function toggleKategori(id) {
@@ -687,6 +705,7 @@ function bukaModalEditKategori(oldName) {
   });
 }
 
+// LAPORAN PUBLIK DENGAN KATEGORI 2 KOLOM SEJAJAR & WARNA-WARNI
 function renderLaporan() {
   let inTot = 0, outTot = 0;
   let katMasuk = {}; let katKeluar = {}; let katRiwayat = {};
@@ -713,21 +732,36 @@ function renderLaporan() {
       <div class="box keluar"><b>Total Keluar</b><br><span>Rp ${outTot.toLocaleString('id-ID')}</span></div>
     </div>`;
 
-  allKats.forEach(k => {
+  const colorPalette = [
+    { bg: '#E8F5E9', border: '#C8E6C9', text: '#2E7D32' }, // Soft Green
+    { bg: '#E3F2FD', border: '#BBDEFB', text: '#1565C0' }, // Soft Blue
+    { bg: '#FFF3E0', border: '#FFE0B2', text: '#E65100' }, // Soft Orange
+    { bg: '#F3E5F5', border: '#E1BEE7', text: '#7B1FA2' }, // Soft Purple
+    { bg: '#E0F2F1', border: '#B2DFDB', text: '#00695C' }, // Soft Teal
+    { bg: '#FCE4EC', border: '#F8BBD0', text: '#C2185B' }, // Soft Pink
+    { bg: '#FFFDE7', border: '#FFF59D', text: '#F57F17' }, // Soft Yellow
+    { bg: '#EFEBE9', border: '#D7CCC8', text: '#4E342E' }  // Soft Brown
+  ];
+
+  h += `<div class="kat-grid">`;
+
+  allKats.forEach((k, idx) => {
     let items = katRiwayat[k] || [];
     let displayTotal = (katMasuk[k] || 0) > 0 ? katMasuk[k] : ((katKeluar[k] || 0) > 0 ? katKeluar[k] : 0);
     let catId = "det-kat-" + k.replace(/\s+/g, '-');
-    let btnEditKat = isPublicMode ? "" : `<button class="btn-aksi-sm btn-edit-sm" onclick="event.stopPropagation(); bukaModalEditKategori('${k}')" style="margin-left:8px; padding:2px 6px; font-size:10px;">✏️ Edit</button>`;
+    let col = colorPalette[idx % colorPalette.length];
+    let btnEditKat = isPublicMode ? "" : `<button class="btn-aksi-sm btn-edit-sm" onclick="event.stopPropagation(); bukaModalEditKategori('${k}')" style="padding:1px 5px; font-size:9px; margin-top:3px;">✏️ Edit</button>`;
     
-    h += `<div class="card" style="margin-bottom:12px; padding:0; overflow:hidden;">
-            <div style="padding:15px; cursor:pointer; display:flex; justify-content:space-between; align-items:center;" onclick="toggleKategori('${catId}')">
-              <span style="display:flex; align-items:center;"><b style="color:#00695C; font-size:15px;">${k}</b> ${btnEditKat}</span>
-              <span style="color:#1565C0; font-weight:bold;">Rp ${displayTotal.toLocaleString('id-ID')}</span>
-            </div>
-            <div id="${catId}" style="display:none; padding:10px 15px; font-size:12px; border-top:1px solid #eee; background:#fafafa;">`;
-    
+    h += `<div class="kat-card" style="background:${col.bg}; border-color:${col.border}; color:${col.text};" onclick="toggleKategori('${catId}')">
+            <div style="font-weight:bold; font-size:13px; line-height:1.2;">${k}</div>
+            <div>${btnEditKat}</div>
+            <div style="font-weight:bold; font-size:14px; margin-top:5px;">Rp ${displayTotal.toLocaleString('id-ID')}</div>
+          </div>
+          <div id="${catId}" class="kat-detail-box" style="display:none;">
+            <div style="font-weight:bold; color:${col.text}; margin-bottom:8px; border-bottom:1px solid #eee; padding-bottom:4px; font-size:13px;">Rincian Transaksi: ${k}</div>`;
+
     if(k.toLowerCase().includes("iuran bulanan") || k.toLowerCase().includes("bulanan")) {
-      h += `<div style="margin-bottom:12px; background:#E8F5E9; padding:8px; border-radius:6px; border:1px solid #C8E6C9;">
+      h += `<div style="margin-bottom:12px; background:#fff; padding:8px; border-radius:6px; border:1px solid #C8E6C9;">
               <label style="margin-top:0; color:#2E7D32; font-size:11px;">🔍 Cek Status Bayar Per Warga:</label>
               <select onchange="if(this.value) tampilProfilWarga(this.value)" style="font-size:12px; padding:8px; margin-top:4px; border-color:#4CAF50; background:white;">
                 <option value="">-- Pilih Nama Warga --</option>
@@ -747,7 +781,7 @@ function renderLaporan() {
             <button class="btn-aksi-sm btn-del-sm" onclick="hapusTrx('${r.baris}')">Hapus</button>
           </div>
         `;
-        h += `<div style="padding:8px 0; border-bottom:1px dashed #ddd;">
+        h += `<div style="padding:8px 0; border-bottom:1px dashed #ddd; text-align:left;">
                 <div style="display:flex; justify-content:space-between;">
                   <span><b>${r.tanggal}</b> ${r.warga ? `(${r.warga})` : ''}</span>
                   <span style="color:${color}; font-weight:bold;">Rp ${(r.nominalAsli||0).toLocaleString('id-ID')}</span>
@@ -757,8 +791,10 @@ function renderLaporan() {
               </div>`; 
       });
     }
-    h += `</div></div>`;
+    h += `</div>`;
   });
+
+  h += `</div>`;
 
   if(!isPublicMode) {
     h += `<button class="btn-utama btn-whatsapp" onclick="shareLaporanWA()" style="margin-top:10px;">📱 Bagikan Laporan & Link Publik Ke WhatsApp</button>`;
