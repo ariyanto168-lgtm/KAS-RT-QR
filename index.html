@@ -132,7 +132,7 @@ input, select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radiu
 <div class="header no-print">
   <img src="./logokasrtqr4.jpg" alt="Logo Kas RT" class="app-logo" onerror="this.style.display='none'">
   <h2 id="judulApp" style="margin:0;">Kas RT Mobile</h2>
-  <div id="headerVersionInfo" class="header-version">Versi 1.2.3</div>
+  <div id="headerVersionInfo" class="header-version">Versi 1.2.4</div>
   <div id="brandingFooter" style="font-size: 11px; color: #777; font-weight: bold; margin-top: 3px; letter-spacing: 0.5px; cursor: pointer;" onclick="window.location.href=window.location.pathname">Powered By Ari GPM</div>
 </div>
 
@@ -479,25 +479,6 @@ function pilihWargaSearch(no, nama) {
   drop.style.display = 'none';
 }
 
-function simpanLokalOffline(fnName, payload) {
-  let queue = JSON.parse(localStorage.getItem('kas_rt_offline_queue') || '[]');
-  queue.push({ fn: fnName, param: payload, time: Date.now() });
-  localStorage.setItem('kas_rt_offline_queue', JSON.stringify(queue));
-
-  if (!globalData.riwayat) globalData.riwayat = [];
-  if (fnName === 'simpanTransaksi') {
-    globalData.riwayat.push(payload);
-  } else if (fnName === 'updateTransaksi') {
-    let idx = globalData.riwayat.findIndex(x => (x.baris && x.baris.toString() === (payload.baris || payload.id).toString()) || (x.id && x.id.toString() === (payload.baris || payload.id).toString()));
-    if (idx !== -1) globalData.riwayat[idx] = payload;
-  }
-  localStorage.setItem('kas_rt_data', JSON.stringify(globalData));
-  
-  renderDashboard();
-  tutupForm();
-  tampilNotifikasi("Transaksi Berhasil Disimpan!");
-}
-
 function sinkronkanDataOffline() {
   let queue = JSON.parse(localStorage.getItem('kas_rt_offline_queue') || '[]');
   if (queue.length === 0 || !navigator.onLine) return;
@@ -783,6 +764,7 @@ function tutupForm() {
   currentEditTrxId = null;
 }
 
+/* PROSES SIMPAN INSTAN TANPA LOADING / MENGHUBUNGKAN SERVER */
 function submitTransaksi(e) {
   e.preventDefault();
   
@@ -790,7 +772,6 @@ function submitTransaksi(e) {
   let noRumah = document.getElementById('selectedNoRumah').value;
   let wNama = document.getElementById('selectedNamaWarga').value;
 
-  // JIKA PENGGUNA KETIK TEKS BEBAS MANUALLY (TANPA KLIK PILIHAN WARGA)
   if (!noRumah && valSearch) {
     if (valSearch.includes(" - ")) {
       let parts = valSearch.split(" - ");
@@ -802,9 +783,10 @@ function submitTransaksi(e) {
     }
   }
 
+  let trxId = currentEditTrxId || new Date().getTime().toString();
   let trx = {
-    id: currentEditTrxId || new Date().getTime().toString(),
-    baris: currentEditTrxId || new Date().getTime().toString(),
+    id: trxId,
+    baris: trxId,
     tanggal: document.getElementById('tanggal').value, 
     jenis: document.getElementById('trxJenis').value, 
     kategori: document.getElementById('trxKategori').value,
@@ -816,16 +798,43 @@ function submitTransaksi(e) {
 
   let actionName = currentEditTrxId ? 'updateTransaksi' : 'simpanTransaksi';
 
-  if (!navigator.onLine) {
-    simpanLokalOffline(actionName, trx);
-    return;
+  // 1. UPDATE DATA LOKAL SECARA INSTAN
+  if (!globalData.riwayat) globalData.riwayat = [];
+  if (actionName === 'simpanTransaksi') {
+    globalData.riwayat.push(trx);
+  } else {
+    let idx = globalData.riwayat.findIndex(x => (x.baris && x.baris.toString() === trxId.toString()) || (x.id && x.id.toString() === trxId.toString()));
+    if (idx !== -1) globalData.riwayat[idx] = trx;
   }
+  localStorage.setItem('kas_rt_data', JSON.stringify(globalData));
 
-  callServer(actionName, trx, d => { 
-    if(d) globalData = d; 
-    renderDashboard(); tutupForm(); 
-    tampilNotifikasi("Transaksi Berhasil Disimpan!"); 
-  });
+  // 2. TUTUP FORM, UPDATE TAMPILAN, & BARIS NOTIFIKASI SECARA INSTAN TANPA LOADING
+  renderDashboard();
+  tutupForm();
+  tampilNotifikasi("Transaksi Berhasil Disimpan!");
+
+  // 3. SINKRONISASI KE SERVER DI BELAKANG LAYAR (SILENT SYNC)
+  if (navigator.onLine) {
+    let fullUrl = SCRIPT_URL + "?mode=api&fn=" + actionName + "&data=" + encodeURIComponent(JSON.stringify(trx));
+    fetch(fullUrl)
+      .then(res => res.json())
+      .then(data => {
+        if (data && typeof data === 'object' && !data.error) {
+          globalData = data;
+          localStorage.setItem('kas_rt_data', JSON.stringify(data));
+          renderDashboard();
+        }
+      })
+      .catch(err => {
+        let queue = JSON.parse(localStorage.getItem('kas_rt_offline_queue') || '[]');
+        queue.push({ fn: actionName, param: trx, time: Date.now() });
+        localStorage.setItem('kas_rt_offline_queue', JSON.stringify(queue));
+      });
+  } else {
+    let queue = JSON.parse(localStorage.getItem('kas_rt_offline_queue') || '[]');
+    queue.push({ fn: actionName, param: trx, time: Date.now() });
+    localStorage.setItem('kas_rt_offline_queue', JSON.stringify(queue));
+  }
 }
 
 function bukaScanner() {
@@ -959,14 +968,18 @@ function hapusTrx(id) {
     showBatal: true, btnText: "Ya, Hapus", btnColor: "#C62828",
     onConfirm: function() {
       tutupNotifikasi();
-      if (!navigator.onLine) {
-        return tampilNotifikasi("Menghapus data memerlukan koneksi internet aktif.");
+      // HAPUS LOKAL DULU
+      if (globalData.riwayat) {
+        globalData.riwayat = globalData.riwayat.filter(x => (x.baris || x.id).toString() !== id.toString());
+        localStorage.setItem('kas_rt_data', JSON.stringify(globalData));
+        renderDashboard();
       }
-      callServer("hapusTransaksi", {id: id}, d => {
-        if(d) globalData = d;
-        renderLaporan();
-        tampilNotifikasi("Transaksi berhasil dihapus!");
-      });
+      if (navigator.onLine) {
+        fetch(SCRIPT_URL + "?mode=api&fn=hapusTransaksi&data=" + encodeURIComponent(JSON.stringify({id: id})))
+          .then(res => res.json())
+          .then(d => { if(d) { globalData = d; localStorage.setItem('kas_rt_data', JSON.stringify(d)); renderDashboard(); } })
+          .catch(()=>{});
+      }
     }
   });
 }
