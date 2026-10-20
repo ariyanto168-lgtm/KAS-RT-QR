@@ -132,7 +132,7 @@ input, select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radiu
 <div class="header no-print">
   <img src="./logokasrtqr4.jpg" alt="Logo Kas RT" class="app-logo" onerror="this.style.display='none'">
   <h2 id="judulApp" style="margin:0;">Kas RT Mobile</h2>
-  <div id="headerVersionInfo" class="header-version">Versi 1.1.8</div>
+  <div id="headerVersionInfo" class="header-version">Versi 1.1.9</div>
   <div id="brandingFooter" style="font-size: 11px; color: #777; font-weight: bold; margin-top: 3px; letter-spacing: 0.5px; cursor: pointer;" onclick="window.location.href=window.location.pathname">Powered By Ari GPM</div>
 </div>
 
@@ -348,7 +348,6 @@ let isPublicMode = false;
 let currentEditTrxId = null;
 let singlePrintNo = null;
 
-// KEAMANAN: SANITASI STRING UNTUK MENCEGAH XSS
 function escapeHTML(str) {
   if (str === null || str === undefined) return '';
   return String(str)
@@ -359,7 +358,6 @@ function escapeHTML(str) {
     .replace(/'/g, "&#039;");
 }
 
-// BACA CACHE LOCAL STORAGE PERTAMA KALI SUPAYA CEPAT SAAT SINYAL MINIM
 try {
   let localCache = localStorage.getItem('kas_rt_data');
   if (localCache) {
@@ -367,7 +365,6 @@ try {
   }
 } catch(e) {}
 
-// DETEKSI SIKLUS PERSISTENSI & MODE PUBLIK / ADMIN (ANTI REFRESH)
 window.addEventListener('DOMContentLoaded', () => {
   const urlParams = new URLSearchParams(window.location.search);
   const savedAdminEmail = localStorage.getItem('kas_rt_admin_email');
@@ -390,17 +387,21 @@ window.addEventListener('DOMContentLoaded', () => {
       gantiView(savedLastView && savedLastView !== 'login' ? savedLastView : 'laporan');
     });
   } else if (savedAdminEmail) {
-    // ADMIN SESEI TERJAGA (ANTI-REFRESH)
     currentUserEmail = savedAdminEmail;
     document.getElementById('lblAkunAktif').innerText = escapeHTML(savedAdminEmail);
     
-    callServer("getAppData", null, function(data) {
-      if(data) {
-        globalData = data;
-        localStorage.setItem('kas_rt_data', JSON.stringify(data));
-      }
+    if (!navigator.onLine) {
       gantiView(savedLastView && savedLastView !== 'login' ? savedLastView : 'dashboard');
-    });
+      tampilNotifikasi("Menampilkan data offline dari HP.", "Mode Offline");
+    } else {
+      callServer("getAppData", null, function(data) {
+        if(data) {
+          globalData = data;
+          localStorage.setItem('kas_rt_data', JSON.stringify(data));
+        }
+        gantiView(savedLastView && savedLastView !== 'login' ? savedLastView : 'dashboard');
+      });
+    }
   } else {
     gantiView('login');
   }
@@ -469,7 +470,6 @@ function gantiView(namaView) {
     if (targetEl) targetEl.style.display = 'block';
     else document.getElementById('viewDashboard').style.display = 'block';
 
-    // Anti Refresh: Simpan posisi tampilan aktif ke localStorage
     localStorage.setItem('kas_rt_last_view', namaView);
 
     if(namaView === 'dashboard') renderDashboard();
@@ -503,7 +503,7 @@ function callServer(funcName, param, callback) {
   .catch(err => { 
     sembunyikanLoader(); 
     let cached = localStorage.getItem('kas_rt_data');
-    if (cached && (funcName === "getAppData" || funcName === "cekLogin")) {
+    if (cached) {
       globalData = JSON.parse(cached);
       if(callback) callback(globalData);
       tampilNotifikasi("Sinyal lemah / Offline. Menampilkan data offline dari HP.", "Mode Offline Opsional");
@@ -517,11 +517,31 @@ function prosesLogin() {
   let email = document.getElementById('inputLoginEmail').value.trim();
   let pin = document.getElementById('inputLoginPin').value.trim();
   if(!email || !pin) return tampilNotifikasi("Email dan PIN wajib diisi!");
-  
+
+  // PENANGANAN KHUSUS LOGIN MODE PESAWAT / OFFLINE
+  if (!navigator.onLine) {
+    let savedEmail = localStorage.getItem('kas_rt_admin_email');
+    let savedPin = localStorage.getItem('kas_rt_admin_pin');
+    
+    if (savedEmail && savedPin && email === savedEmail && pin === savedPin) {
+      currentUserEmail = email;
+      document.getElementById('lblAkunAktif').innerText = escapeHTML(email);
+      let cached = localStorage.getItem('kas_rt_data');
+      if (cached) globalData = JSON.parse(cached);
+      gantiView('dashboard');
+      tampilNotifikasi("Berhasil masuk dalam Mode Offline (Mode Pesawat).", "Mode Offline");
+    } else {
+      tampilNotifikasi("Gagal Login Offline: Email/PIN tidak cocok atau belum pernah login online sebelumnya di HP ini.", "Mode Offline");
+    }
+    return;
+  }
+
+  // LOGIN ONLINE KE SERVER
   callServer("cekLogin", {email: email, pin: pin}, function(res) {
     if(res && res.success) {
       currentUserEmail = email;
       localStorage.setItem('kas_rt_admin_email', email);
+      localStorage.setItem('kas_rt_admin_pin', pin); // SIMPAN PIN LOKAL UNTUK OFFLINE NEXT TIME
       document.getElementById('lblAkunAktif').innerText = escapeHTML(email);
       loadAppData();
     } else { tampilNotifikasi("Gagal: Email atau PIN salah!"); }
@@ -530,6 +550,7 @@ function prosesLogin() {
 
 function prosesLogout() {
   localStorage.removeItem('kas_rt_admin_email');
+  localStorage.removeItem('kas_rt_admin_pin');
   localStorage.removeItem('kas_rt_last_view');
   location.reload();
 }
@@ -600,7 +621,7 @@ function prosesGantiEmailPIN() {
   let em = document.getElementById('inputGantiEmail').value.trim(); 
   let pn = document.getElementById('inputGantiPin').value.trim();
   if(pn.length < 4) return tampilNotifikasi("PIN minimal 4 karakter!");
-  callServer("gantiEmailDanPINAkun", {oldEmail: currentUserEmail, newEmail: em, newPin: pn}, res => { if(res && res.success) { currentUserEmail = em; localStorage.setItem('kas_rt_admin_email', em); tampilNotifikasi("Akun diperbarui!"); } });
+  callServer("gantiEmailDanPINAkun", {oldEmail: currentUserEmail, newEmail: em, newPin: pn}, res => { if(res && res.success) { currentUserEmail = em; localStorage.setItem('kas_rt_admin_email', em); localStorage.setItem('kas_rt_admin_pin', pn); tampilNotifikasi("Akun diperbarui!"); } });
 }
 
 function konfirmasiResetData() {
@@ -786,7 +807,6 @@ function bukaModalEditKategori(oldName) {
   });
 }
 
-// EKSPORT BACKUP DATABASE KE FORMAT CSV / GOOGLE SHEETS
 function downloadBackupGoogleSheet() {
   if (!globalData) return tampilNotifikasi("Data database belum dimuat penuh.");
   
@@ -865,7 +885,6 @@ function downloadBackupGoogleSheet() {
   tampilNotifikasi("File backup database Kas RT berhasil diunduh! File CSV ini siap langsung dibuka di Google Sheets atau Excel.", "Backup Berhasil");
 }
 
-// FILTER CARI WARGA KHUSUS PADA LAPORAN PUBLIK IURAN BULANAN
 function filterWargaLaporan() {
   let q = (document.getElementById('cariWargaLaporan').value || "").toLowerCase().trim();
   let resDiv = document.getElementById('hasilCariWargaLaporan');
@@ -886,7 +905,6 @@ function filterWargaLaporan() {
   resDiv.style.display = 'block';
 }
 
-// LAPORAN PUBLIK DENGAN KATEGORI 2 KOLOM SEJAJAR & WARNA-WARNI
 function renderLaporan() {
   let inTot = 0, outTot = 0;
   let katMasuk = {}; let katKeluar = {}; let katRiwayat = {};
