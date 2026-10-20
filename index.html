@@ -78,7 +78,7 @@ input, select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radiu
 .belum-text { color: #C62828; }
 .qr-history-title { font-size: 14px; font-weight: bold; margin-bottom: 10px;}
 .qr-history-list { list-style: none; padding: 0; margin: 0; }
-.qr-history-list li { padding: 8px 0; border-bottom: 1px dashed #ccc; font-size: 14px; display:flex; justify-content:space-between; }
+.qr-history-list li { padding: 8px 0; border-bottom: 1px dashed #ccc; font-size: 14px; display:flex; justify-content:space-between; align-items:center; }
 .qr-history-list li:last-child { border-bottom: none; }
 
 /* PRINT THERMAL 58 MM */
@@ -132,7 +132,7 @@ input, select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radiu
 <div class="header no-print">
   <img src="./logokasrtqr4.jpg" alt="Logo Kas RT" class="app-logo" onerror="this.style.display='none'">
   <h2 id="judulApp" style="margin:0;">Kas RT Mobile</h2>
-  <div id="headerVersionInfo" class="header-version">Versi 1.2.1</div>
+  <div id="headerVersionInfo" class="header-version">Versi 1.2.3</div>
   <div id="brandingFooter" style="font-size: 11px; color: #777; font-weight: bold; margin-top: 3px; letter-spacing: 0.5px; cursor: pointer;" onclick="window.location.href=window.location.pathname">Powered By Ari GPM</div>
 </div>
 
@@ -222,7 +222,16 @@ input, select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radiu
           <select id="trxKategori" required></select>
         </div>
       </div>
-      <label>Warga Terkait (Opsional)</label><select id="opsiWarga"></select>
+      
+      <!-- MODE PENCARIAN WARGA / INPUT TEKS BEBAS -->
+      <label>Warga Terkait (Cari / Teks Bebas)</label>
+      <div id="boxSearchWargaContainer" style="position:relative;">
+        <input type="text" id="inputWargaSearch" placeholder="Ketik nama, no rumah, atau teks bebas..." onkeyup="filterInputWargaTrx()" onfocus="filterInputWargaTrx()" autocomplete="off">
+        <div id="dropWargaSearch" style="position:absolute; top:100%; left:0; right:0; background:white; border:1px solid #ccc; border-radius:6px; max-height:180px; overflow-y:auto; z-index:100; display:none; box-shadow:0 4px 10px rgba(0,0,0,0.15);"></div>
+      </div>
+      <input type="hidden" id="selectedNoRumah" value="">
+      <input type="hidden" id="selectedNamaWarga" value="">
+
       <label>Uraian Keterangan</label><input type="text" id="trxUraian" required>
       <label>Nominal (Rp)</label><input type="number" id="trxNominal" required>
       <button type="submit" class="btn-utama" style="margin-top: 15px; background: #FF9800;" id="btnSimpanTrx">Simpan Transaksi</button>
@@ -412,6 +421,64 @@ window.addEventListener('online', () => {
   sinkronkanDataOffline();
 });
 
+// TUTUP POPUP PENCARIAN WARGA JIKA KLIK DI LUAR BOX
+document.addEventListener('click', function(e) {
+  let container = document.getElementById('boxSearchWargaContainer');
+  if(container && !container.contains(e.target)) {
+    let drop = document.getElementById('dropWargaSearch');
+    if(drop) drop.style.display = 'none';
+  }
+});
+
+function filterInputWargaTrx() {
+  let q = document.getElementById('inputWargaSearch').value.toLowerCase().trim();
+  let drop = document.getElementById('dropWargaSearch');
+  
+  document.getElementById('selectedNoRumah').value = "";
+  document.getElementById('selectedNamaWarga').value = document.getElementById('inputWargaSearch').value.trim();
+
+  let h = `<div style="padding:8px 10px; border-bottom:1px solid #eee; cursor:pointer; color:#888; font-weight:bold; font-size:12px;" onclick="pilihWargaSearch('', '')">-- Bebas / Kas Umum --</div>`;
+  
+  if(globalData.warga && globalData.warga.length > 0) {
+    let matches = globalData.warga.filter(w => w.nama.toLowerCase().includes(q) || w.no.toString().toLowerCase().includes(q));
+    if(matches.length > 0) {
+      matches.forEach(w => {
+        let wNoEsc = escapeHTML(w.no.toString());
+        let wNmEsc = escapeHTML(w.nama);
+        let wNoSafe = w.no.toString().replace(/'/g, "\\'");
+        let wNmSafe = w.nama.replace(/'/g, "\\'");
+        h += `<div style="padding:8px 10px; border-bottom:1px solid #eee; cursor:pointer; font-size:12px;" onclick="pilihWargaSearch('${wNoSafe}', '${wNmSafe}')"><b>${wNoEsc}</b> - ${wNmEsc}</div>`;
+      });
+    } else {
+      h += `<div style="padding:8px 10px; color:#666; font-size:11px; font-style:italic;">Ketik langsung untuk teks bebas...</div>`;
+    }
+  }
+  drop.innerHTML = h;
+  drop.style.display = 'block';
+}
+
+function pilihWargaSearch(no, nama) {
+  let inp = document.getElementById('inputWargaSearch');
+  let hiddenNo = document.getElementById('selectedNoRumah');
+  let hiddenNama = document.getElementById('selectedNamaWarga');
+  let drop = document.getElementById('dropWargaSearch');
+
+  if(no) {
+    inp.value = no + " - " + nama;
+    hiddenNo.value = no;
+    hiddenNama.value = nama;
+  } else if(nama) {
+    inp.value = nama;
+    hiddenNo.value = "";
+    hiddenNama.value = nama;
+  } else {
+    inp.value = "";
+    hiddenNo.value = "";
+    hiddenNama.value = "";
+  }
+  drop.style.display = 'none';
+}
+
 function simpanLokalOffline(fnName, payload) {
   let queue = JSON.parse(localStorage.getItem('kas_rt_offline_queue') || '[]');
   queue.push({ fn: fnName, param: payload, time: Date.now() });
@@ -421,7 +488,7 @@ function simpanLokalOffline(fnName, payload) {
   if (fnName === 'simpanTransaksi') {
     globalData.riwayat.push(payload);
   } else if (fnName === 'updateTransaksi') {
-    let idx = globalData.riwayat.findIndex(x => x.baris === payload.baris || x.id === payload.id);
+    let idx = globalData.riwayat.findIndex(x => (x.baris && x.baris.toString() === (payload.baris || payload.id).toString()) || (x.id && x.id.toString() === (payload.baris || payload.id).toString()));
     if (idx !== -1) globalData.riwayat[idx] = payload;
   }
   localStorage.setItem('kas_rt_data', JSON.stringify(globalData));
@@ -468,8 +535,8 @@ function tampilkanLoader(teks) {
 function sembunyikanLoader() { document.getElementById('loaderOverlay').style.display = 'none'; }
 
 function tampilNotifikasi(pesan, judul = "Informasi", config = {}) {
-  document.getElementById('modalHeaderTitle').innerText = escapeHTML(judul);
-  document.getElementById('modalBodyMessage').innerText = escapeHTML(pesan);
+  document.getElementById('modalHeaderTitle').innerText = judul;
+  document.getElementById('modalBodyMessage').innerText = pesan;
   
   let inputCont = document.getElementById('modalInputContainer');
   let btnBatal = document.getElementById('modalBtnBatal');
@@ -650,16 +717,20 @@ function renderDashboard() {
   let listHtml = "";
   if(globalData.riwayat && globalData.riwayat.length > 0) {
     globalData.riwayat.slice(-5).reverse().forEach(r => {
-      listHtml += `<div class="trx-item"><b>${escapeHTML(r.tanggal)}</b> - [${escapeHTML(r.kategori)}] ${escapeHTML(r.noRumah)} (${escapeHTML(r.warga)})<br>${escapeHTML(r.uraian)}: <b>Rp ${(r.nominalAsli||0).toLocaleString('id-ID')}</b></div>`;
+      let keyId = r.baris || r.id;
+      let btnAdmin = isPublicMode ? "" : `
+        <div style="margin-top:4px; text-align:right;">
+          <button class="btn-aksi-sm btn-edit-sm" onclick="bukaFormEditTrx('${escapeHTML(keyId)}')">Edit</button>
+          <button class="btn-aksi-sm btn-del-sm" onclick="hapusTrx('${escapeHTML(keyId)}')">Hapus</button>
+        </div>`;
+      listHtml += `<div class="trx-item">
+        <b>${escapeHTML(r.tanggal)}</b> - [${escapeHTML(r.kategori)}] ${escapeHTML(r.noRumah)} (${escapeHTML(r.warga)})<br>
+        ${escapeHTML(r.uraian)}: <b>Rp ${(r.nominalAsli||0).toLocaleString('id-ID')}</b>
+        ${btnAdmin}
+      </div>`;
     });
   }
   document.getElementById('listRiwayatPendek').innerHTML = listHtml || "Belum ada riwayat.";
-
-  let selWarga = document.getElementById('opsiWarga');
-  selWarga.innerHTML = `<option value="">-- Bebas / Kas Umum --</option>`;
-  if(globalData.warga && Array.isArray(globalData.warga)) {
-    globalData.warga.forEach(w => selWarga.innerHTML += `<option value="${escapeHTML(w.no)}">${escapeHTML(w.no)} - ${escapeHTML(w.nama)}</option>`);
-  }
 
   let selKat = document.getElementById('trxKategori');
   selKat.innerHTML = "";
@@ -701,7 +772,10 @@ function bukaFormTrxBaru() {
   document.getElementById('trxNominal').value = (globalData.setting ? globalData.setting.iuran : 50000);
   document.getElementById('tanggal').value = new Date().toISOString().split('T')[0];
   document.getElementById('trxUraian').value = "";
-  document.getElementById('opsiWarga').value = "";
+  
+  document.getElementById('inputWargaSearch').value = "";
+  document.getElementById('selectedNoRumah').value = "";
+  document.getElementById('selectedNamaWarga').value = "";
 }
 
 function tutupForm() { 
@@ -711,20 +785,31 @@ function tutupForm() {
 
 function submitTransaksi(e) {
   e.preventDefault();
-  let selWarga = document.getElementById('opsiWarga');
-  let wNama = "";
-  if(selWarga.selectedIndex > 0 && selWarga.value !== "") {
-    wNama = selWarga.options[selWarga.selectedIndex].text.split(' - ')[1] || "";
-  }
   
+  let valSearch = document.getElementById('inputWargaSearch').value.trim();
+  let noRumah = document.getElementById('selectedNoRumah').value;
+  let wNama = document.getElementById('selectedNamaWarga').value;
+
+  // JIKA PENGGUNA KETIK TEKS BEBAS MANUALLY (TANPA KLIK PILIHAN WARGA)
+  if (!noRumah && valSearch) {
+    if (valSearch.includes(" - ")) {
+      let parts = valSearch.split(" - ");
+      noRumah = parts[0].trim();
+      wNama = parts.slice(1).join(" - ").trim();
+    } else {
+      noRumah = "";
+      wNama = valSearch;
+    }
+  }
+
   let trx = {
     id: currentEditTrxId || new Date().getTime().toString(),
     baris: currentEditTrxId || new Date().getTime().toString(),
     tanggal: document.getElementById('tanggal').value, 
     jenis: document.getElementById('trxJenis').value, 
     kategori: document.getElementById('trxKategori').value,
-    noRumah: selWarga.value || "", 
-    warga: wNama, 
+    noRumah: noRumah || "", 
+    warga: wNama || "", 
     uraian: document.getElementById('trxUraian').value, 
     nominalAsli: parseFloat(document.getElementById('trxNominal').value) || 0
   };
@@ -796,7 +881,15 @@ function tampilProfilWarga(no) {
 
   let histHtml = "";
   if(globalData.riwayat) {
-    globalData.riwayat.filter(r => r.noRumah.toString() === no.toString()).slice(-5).reverse().forEach(r => { histHtml += `<li><span>${escapeHTML(r.tanggal)} - ${escapeHTML(r.kategori)}</span> <b>Rp ${(r.nominalAsli||0).toLocaleString('id-ID')}</b></li>`; });
+    globalData.riwayat.filter(r => r.noRumah.toString() === no.toString()).slice(-5).reverse().forEach(r => { 
+      let keyId = r.baris || r.id;
+      let btnAdmin = isPublicMode ? "" : `
+        <div style="margin-top:4px;">
+          <button class="btn-aksi-sm btn-edit-sm" onclick="bukaFormEditTrx('${escapeHTML(keyId)}')">Edit</button>
+          <button class="btn-aksi-sm btn-del-sm" onclick="hapusTrx('${escapeHTML(keyId)}')">Hapus</button>
+        </div>`;
+      histHtml += `<li><span>${escapeHTML(r.tanggal)} - ${escapeHTML(r.kategori)}</span> <b>Rp ${(r.nominalAsli||0).toLocaleString('id-ID')}</b> ${btnAdmin}</li>`; 
+    });
   }
   document.getElementById('profRiwayat').innerHTML = histHtml || "<li>Belum ada riwayat transaksi.</li>";
   gantiView('profilScan');
@@ -808,7 +901,16 @@ function cetakQRPerorangan() {
   setTimeout(() => { window.print(); }, 300);
 }
 
-function bayarKasDariProfil() { gantiView('dashboard'); bukaFormTrxBaru(); document.getElementById('opsiWarga').value = currentProfilNo; }
+function bayarKasDariProfil() { 
+  gantiView('dashboard'); 
+  bukaFormTrxBaru(); 
+  let w = globalData.warga ? globalData.warga.find(item => item.no.toString() === currentProfilNo.toString()) : null;
+  if (w) {
+    pilihWargaSearch(w.no, w.nama);
+  } else {
+    pilihWargaSearch(currentProfilNo, "");
+  }
+}
 
 function toggleKategori(id) {
   let el = document.getElementById(id);
@@ -817,21 +919,39 @@ function toggleKategori(id) {
 }
 
 function bukaFormEditTrx(id) {
-  let r = globalData.riwayat.find(x => x.baris === id || x.id === id);
+  if(!globalData.riwayat) return;
+  let r = globalData.riwayat.find(x => (x.baris && x.baris.toString() === id.toString()) || (x.id && x.id.toString() === id.toString()));
   if(!r) return;
-  currentEditTrxId = id;
-  document.getElementById('formSection').style.display = 'block';
-  document.getElementById('judulFormTrx').innerText = "Edit Transaksi Kas";
-  document.getElementById('tanggal').value = r.tanggal;
-  document.getElementById('trxJenis').value = r.jenis;
-  document.getElementById('trxKategori').value = r.kategori;
-  document.getElementById('opsiWarga').value = r.noRumah || "";
-  document.getElementById('trxUraian').value = r.uraian || "";
-  document.getElementById('trxNominal').value = r.nominalAsli;
-  document.getElementById('btnSimpanTrx').innerText = "Update Transaksi";
+  
+  currentEditTrxId = r.baris || r.id;
   
   gantiView('dashboard');
-  window.scrollTo(0, document.getElementById('formSection').offsetTop);
+  
+  let formSec = document.getElementById('formSection');
+  formSec.style.display = 'block';
+  document.getElementById('judulFormTrx').innerText = "Edit Transaksi Kas";
+  
+  document.getElementById('tanggal').value = r.tanggal || "";
+  document.getElementById('trxJenis').value = r.jenis || "Masuk";
+  
+  let selKat = document.getElementById('trxKategori');
+  selKat.innerHTML = "";
+  dapatkanDaftarKategoriUnik().forEach(k => {
+    selKat.innerHTML += `<option value="${escapeHTML(k)}">${escapeHTML(k)}</option>`;
+  });
+  document.getElementById('trxKategori').value = r.kategori || "";
+  
+  if (r.noRumah && r.warga) {
+    pilihWargaSearch(r.noRumah, r.warga);
+  } else {
+    pilihWargaSearch("", r.warga || "");
+  }
+
+  document.getElementById('trxUraian').value = r.uraian || "";
+  document.getElementById('trxNominal').value = r.nominalAsli || 0;
+  document.getElementById('btnSimpanTrx').innerText = "Update Transaksi";
+  
+  window.scrollTo({ top: formSec.offsetTop - 15, behavior: 'smooth' });
 }
 
 function hapusTrx(id) {
@@ -852,7 +972,7 @@ function hapusTrx(id) {
 }
 
 function bukaModalEditKategori(oldName) {
-  tampilNotifikasi(`Ubah nama kategori '${oldName}':`, "Edit Nama Kategori", {
+  tampilNotifikasi("Ubah nama kategori '" + oldName + "':", "Edit Nama Kategori", {
     isInput: true, label1: "Nama Kategori Baru:", val1: oldName, showBatal: true, btnText: "Simpan Nama Baru", btnColor: "#FF9800",
     onConfirm: function(newName) {
       if(newName && newName.trim() !== "" && newName !== oldName) {
@@ -1009,7 +1129,8 @@ function renderLaporan() {
     let displayTotal = (katMasuk[k] || 0) > 0 ? katMasuk[k] : ((katKeluar[k] || 0) > 0 ? katKeluar[k] : 0);
     let catId = "det-kat-" + k.replace(/\s+/g, '-');
     let col = colorPalette[idx % colorPalette.length];
-    let btnEditKat = isPublicMode ? "" : `<button class="btn-aksi-sm btn-edit-sm" onclick="event.stopPropagation(); bukaModalEditKategori('${escapeHTML(k)}')" style="padding:1px 5px; font-size:9px; margin-top:3px;">✏️ Edit</button>`;
+    let kSafe = k.replace(/'/g, "\\'");
+    let btnEditKat = isPublicMode ? "" : `<button class="btn-aksi-sm btn-edit-sm" onclick="event.stopPropagation(); bukaModalEditKategori('${escapeHTML(kSafe)}')" style="padding:1px 5px; font-size:9px; margin-top:3px;">✏️ Edit</button>`;
     
     h += `<div class="kat-card" style="background:${col.bg}; border-color:${col.border}; color:${col.text};" onclick="toggleKategori('${catId}')">
             <div style="font-weight:bold; font-size:13px; line-height:1.2;">${escapeHTML(k)}</div>
@@ -1032,10 +1153,11 @@ function renderLaporan() {
     } else {
       items.slice().reverse().forEach(r => { 
         let color = r.jenis === 'Masuk' ? '#2E7D32' : '#C62828';
+        let keyId = r.baris || r.id;
         let btnAdmin = isPublicMode ? "" : `
           <div style="margin-top:6px; text-align:right;">
-            <button class="btn-aksi-sm btn-edit-sm" onclick="bukaFormEditTrx('${escapeHTML(r.baris || r.id)}')">Edit</button>
-            <button class="btn-aksi-sm btn-del-sm" onclick="hapusTrx('${escapeHTML(r.baris || r.id)}')">Hapus</button>
+            <button class="btn-aksi-sm btn-edit-sm" onclick="bukaFormEditTrx('${escapeHTML(keyId)}')">Edit</button>
+            <button class="btn-aksi-sm btn-del-sm" onclick="hapusTrx('${escapeHTML(keyId)}')">Hapus</button>
           </div>
         `;
         h += `<div style="padding:8px 0; border-bottom:1px dashed #ddd; text-align:left;">
@@ -1138,7 +1260,19 @@ function konfirmasiHapusWarga(no) {
 function renderRekapLengkap() {
   let h = "";
   if(globalData.riwayat && globalData.riwayat.length > 0) {
-    globalData.riwayat.slice().reverse().forEach(r => { h += `<div class="trx-item"><b>${escapeHTML(r.tanggal)}</b> - [${escapeHTML(r.kategori)}] ${escapeHTML(r.noRumah)} (${escapeHTML(r.warga)})<br>${escapeHTML(r.uraian)}: <b>Rp ${(r.nominalAsli||0).toLocaleString('id-ID')}</b></div>`; });
+    globalData.riwayat.slice().reverse().forEach(r => { 
+      let keyId = r.baris || r.id;
+      let btnAdmin = isPublicMode ? "" : `
+        <div style="margin-top:4px; text-align:right;">
+          <button class="btn-aksi-sm btn-edit-sm" onclick="bukaFormEditTrx('${escapeHTML(keyId)}')">Edit</button>
+          <button class="btn-aksi-sm btn-del-sm" onclick="hapusTrx('${escapeHTML(keyId)}')">Hapus</button>
+        </div>`;
+      h += `<div class="trx-item">
+        <b>${escapeHTML(r.tanggal)}</b> - [${escapeHTML(r.kategori)}] ${escapeHTML(r.noRumah)} (${escapeHTML(r.warga)})<br>
+        ${escapeHTML(r.uraian)}: <b>Rp ${(r.nominalAsli||0).toLocaleString('id-ID')}</b>
+        ${btnAdmin}
+      </div>`; 
+    });
   }
   document.getElementById('listRiwayatLengkap').innerHTML = h || "Tidak ada data.";
 }
