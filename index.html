@@ -49,6 +49,9 @@ input, select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radiu
 .spinner { border: 4px solid #f3f3f3; border-top: 4px solid #2E7D32; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
 @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
+/* BANNER OFFLINE QUEUE */
+#bannerOfflineSync { display: none; background: #FFF3E0; border: 1px solid #FFE0B2; color: #E65100; padding: 10px; border-radius: 8px; margin-bottom: 12px; font-size: 12px; text-align: center; font-weight: bold; cursor: pointer; }
+
 /* GRID KATEGORI 2 KOLOM */
 .kat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
 .kat-card { border-radius: 8px; padding: 12px 10px; text-align: center; border: 1px solid; cursor: pointer; transition: transform 0.1s; display: flex; flex-direction: column; justify-content: space-between; min-height: 85px; box-sizing: border-box; }
@@ -132,7 +135,7 @@ input, select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radiu
 <div class="header no-print">
   <img src="./logokasrtqr4.jpg" alt="Logo Kas RT" class="app-logo" onerror="this.style.display='none'">
   <h2 id="judulApp" style="margin:0;">Kas RT Mobile</h2>
-  <div id="headerVersionInfo" class="header-version">Versi 1.1.9</div>
+  <div id="headerVersionInfo" class="header-version">Versi 1.2.0</div>
   <div id="brandingFooter" style="font-size: 11px; color: #777; font-weight: bold; margin-top: 3px; letter-spacing: 0.5px; cursor: pointer;" onclick="window.location.href=window.location.pathname">Powered By Ari GPM</div>
 </div>
 
@@ -168,6 +171,8 @@ input, select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radiu
 
 <!-- VIEW 4: DASHBOARD -->
 <div id="viewDashboard" class="app-view no-print" style="display:none;">
+  <div id="bannerOfflineSync" onclick="sinkronkanDataOffline()">⏳ Ada <span id="cntQueue">0</span> transaksi tersimpan offline. Klik untuk Sinkronkan Server Sekarang.</div>
+
   <div style="background: #E8F5E9; padding: 8px 12px; border-radius: 8px; margin-bottom: 12px; font-size: 12px; color: #2E7D32; display: flex; justify-content: space-between; align-items: center;">
     <span>Akun: <b id="lblAkunAktif">-</b></span>
     <button onclick="prosesLogout()" style="background: #C62828; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer;">Keluar</button>
@@ -370,6 +375,8 @@ window.addEventListener('DOMContentLoaded', () => {
   const savedAdminEmail = localStorage.getItem('kas_rt_admin_email');
   const savedLastView = localStorage.getItem('kas_rt_last_view');
 
+  updateIndikatorOffline();
+
   if (urlParams.get('mode') === 'publik') {
     isPublicMode = true;
     document.querySelectorAll('.id-admin-only').forEach(el => el.style.display = 'none');
@@ -392,7 +399,6 @@ window.addEventListener('DOMContentLoaded', () => {
     
     if (!navigator.onLine) {
       gantiView(savedLastView && savedLastView !== 'login' ? savedLastView : 'dashboard');
-      tampilNotifikasi("Menampilkan data offline dari HP.", "Mode Offline");
     } else {
       callServer("getAppData", null, function(data) {
         if(data) {
@@ -400,12 +406,81 @@ window.addEventListener('DOMContentLoaded', () => {
           localStorage.setItem('kas_rt_data', JSON.stringify(data));
         }
         gantiView(savedLastView && savedLastView !== 'login' ? savedLastView : 'dashboard');
+        sinkronkanDataOffline();
       });
     }
   } else {
     gantiView('login');
   }
 });
+
+// EVENT LISTENER OTOMATIS: SINKRONISASI SAAT KONEKSI INTERNET KEMBALI
+window.addEventListener('online', () => {
+  updateIndikatorOffline();
+  sinkronkanDataOffline();
+});
+
+function updateIndikatorOffline() {
+  let queue = JSON.parse(localStorage.getItem('kas_rt_offline_queue') || '[]');
+  let banner = document.getElementById('bannerOfflineSync');
+  let cnt = document.getElementById('cntQueue');
+  if (banner && cnt) {
+    if (queue.length > 0) {
+      cnt.innerText = queue.length;
+      banner.style.display = 'block';
+    } else {
+      banner.style.display = 'none';
+    }
+  }
+}
+
+function simpanLokalOffline(fnName, payload) {
+  let queue = JSON.parse(localStorage.getItem('kas_rt_offline_queue') || '[]');
+  queue.push({ fn: fnName, param: payload, time: Date.now() });
+  localStorage.setItem('kas_rt_offline_queue', JSON.stringify(queue));
+
+  if (!globalData.riwayat) globalData.riwayat = [];
+  if (fnName === 'simpanTransaksi') {
+    globalData.riwayat.push(payload);
+  } else if (fnName === 'updateTransaksi') {
+    let idx = globalData.riwayat.findIndex(x => x.baris === payload.baris || x.id === payload.id);
+    if (idx !== -1) globalData.riwayat[idx] = payload;
+  }
+  localStorage.setItem('kas_rt_data', JSON.stringify(globalData));
+  
+  renderDashboard();
+  tutupForm();
+  updateIndikatorOffline();
+  tampilNotifikasi("Sinyal terputus/offline. Transaksi berhasil disimpan lokal di HP dan akan otomatis disinkronkan saat ada internet!", "Tersimpan Lokal Offline");
+}
+
+function sinkronkanDataOffline() {
+  let queue = JSON.parse(localStorage.getItem('kas_rt_offline_queue') || '[]');
+  if (queue.length === 0 || !navigator.onLine) return;
+
+  tampilkanLoader("Sinyal kembali! Menyinkronkan " + queue.length + " transaksi offline ke database...");
+  let item = queue[0];
+
+  let fullUrl = SCRIPT_URL + "?mode=api&fn=" + item.fn + "&data=" + encodeURIComponent(JSON.stringify(item.param));
+  fetch(fullUrl)
+    .then(res => res.json())
+    .then(data => {
+      queue.shift();
+      localStorage.setItem('kas_rt_offline_queue', JSON.stringify(queue));
+      
+      if (queue.length > 0) {
+        sinkronkanDataOffline();
+      } else {
+        loadAppData();
+        updateIndikatorOffline();
+        tampilNotifikasi("Semua transaksi offline berhasil terkirim dan disinkronkan ke database server secara akurat!", "Auto-Sync Sukses");
+      }
+    })
+    .catch(err => {
+      sembunyikanLoader();
+      updateIndikatorOffline();
+    });
+}
 
 function tampilkanLoader(teks) {
   document.getElementById('loaderText').innerText = teks || "Memproses...";
@@ -486,6 +561,15 @@ function gantiView(namaView) {
 }
 
 function callServer(funcName, param, callback) {
+  if (!navigator.onLine) {
+    let cached = localStorage.getItem('kas_rt_data');
+    if (cached) {
+      globalData = JSON.parse(cached);
+      if(callback) callback(globalData);
+    }
+    return;
+  }
+
   tampilkanLoader("Menghubungkan Server...");
   let fullUrl = SCRIPT_URL + "?mode=api&fn=" + funcName + (param ? "&data=" + encodeURIComponent(JSON.stringify(param)) : "");
   
@@ -506,9 +590,6 @@ function callServer(funcName, param, callback) {
     if (cached) {
       globalData = JSON.parse(cached);
       if(callback) callback(globalData);
-      tampilNotifikasi("Sinyal lemah / Offline. Menampilkan data offline dari HP.", "Mode Offline Opsional");
-    } else {
-      tampilNotifikasi("Koneksi internet lemah / gagal: " + err); 
     }
   });
 }
@@ -518,7 +599,6 @@ function prosesLogin() {
   let pin = document.getElementById('inputLoginPin').value.trim();
   if(!email || !pin) return tampilNotifikasi("Email dan PIN wajib diisi!");
 
-  // PENANGANAN KHUSUS LOGIN MODE PESAWAT / OFFLINE
   if (!navigator.onLine) {
     let savedEmail = localStorage.getItem('kas_rt_admin_email');
     let savedPin = localStorage.getItem('kas_rt_admin_pin');
@@ -536,12 +616,11 @@ function prosesLogin() {
     return;
   }
 
-  // LOGIN ONLINE KE SERVER
   callServer("cekLogin", {email: email, pin: pin}, function(res) {
     if(res && res.success) {
       currentUserEmail = email;
       localStorage.setItem('kas_rt_admin_email', email);
-      localStorage.setItem('kas_rt_admin_pin', pin); // SIMPAN PIN LOKAL UNTUK OFFLINE NEXT TIME
+      localStorage.setItem('kas_rt_admin_pin', pin);
       document.getElementById('lblAkunAktif').innerText = escapeHTML(email);
       loadAppData();
     } else { tampilNotifikasi("Gagal: Email atau PIN salah!"); }
@@ -662,6 +741,7 @@ function submitTransaksi(e) {
   
   let trx = {
     id: currentEditTrxId || new Date().getTime().toString(),
+    baris: currentEditTrxId || new Date().getTime().toString(),
     tanggal: document.getElementById('tanggal').value, 
     jenis: document.getElementById('trxJenis').value, 
     kategori: document.getElementById('trxKategori').value,
@@ -671,19 +751,20 @@ function submitTransaksi(e) {
     nominalAsli: parseFloat(document.getElementById('trxNominal').value) || 0
   };
 
-  if(currentEditTrxId) {
-    callServer("updateTransaksi", trx, d => { 
-      if(d) globalData = d; 
-      renderDashboard(); tutupForm(); 
-      tampilNotifikasi("Perubahan Transaksi Berhasil Disimpan!"); 
-    });
-  } else {
-    callServer("simpanTransaksi", trx, d => { 
-      if(d) globalData = d; 
-      renderDashboard(); tutupForm(); 
-      tampilNotifikasi("Transaksi Baru Berhasil Disimpan!"); 
-    });
+  let actionName = currentEditTrxId ? 'updateTransaksi' : 'simpanTransaksi';
+
+  // JIKA SEDANG OFFLINE / SINYAL PUTUS
+  if (!navigator.onLine) {
+    simpanLokalOffline(actionName, trx);
+    return;
   }
+
+  // JIKA ONLINE
+  callServer(actionName, trx, d => { 
+    if(d) globalData = d; 
+    renderDashboard(); tutupForm(); 
+    tampilNotifikasi("Transaksi Berhasil Disimpan ke Server!"); 
+  });
 }
 
 function bukaScanner() {
@@ -760,7 +841,7 @@ function toggleKategori(id) {
 }
 
 function bukaFormEditTrx(id) {
-  let r = globalData.riwayat.find(x => x.baris === id);
+  let r = globalData.riwayat.find(x => x.baris === id || x.id === id);
   if(!r) return;
   currentEditTrxId = id;
   document.getElementById('formSection').style.display = 'block';
@@ -782,6 +863,9 @@ function hapusTrx(id) {
     showBatal: true, btnText: "Ya, Hapus", btnColor: "#C62828",
     onConfirm: function() {
       tutupNotifikasi();
+      if (!navigator.onLine) {
+        return tampilNotifikasi("Menghapus data memerlukan koneksi internet aktif.");
+      }
       callServer("hapusTransaksi", {id: id}, d => {
         if(d) globalData = d;
         renderLaporan();
@@ -974,8 +1058,8 @@ function renderLaporan() {
         let color = r.jenis === 'Masuk' ? '#2E7D32' : '#C62828';
         let btnAdmin = isPublicMode ? "" : `
           <div style="margin-top:6px; text-align:right;">
-            <button class="btn-aksi-sm btn-edit-sm" onclick="bukaFormEditTrx('${escapeHTML(r.baris)}')">Edit</button>
-            <button class="btn-aksi-sm btn-del-sm" onclick="hapusTrx('${escapeHTML(r.baris)}')">Hapus</button>
+            <button class="btn-aksi-sm btn-edit-sm" onclick="bukaFormEditTrx('${escapeHTML(r.baris || r.id)}')">Edit</button>
+            <button class="btn-aksi-sm btn-del-sm" onclick="hapusTrx('${escapeHTML(r.baris || r.id)}')">Hapus</button>
           </div>
         `;
         h += `<div style="padding:8px 0; border-bottom:1px dashed #ddd; text-align:left;">
