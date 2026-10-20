@@ -49,9 +49,6 @@ input, select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radiu
 .spinner { border: 4px solid #f3f3f3; border-top: 4px solid #2E7D32; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
 @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
-/* BANNER OFFLINE QUEUE */
-#bannerOfflineSync { display: none; background: #FFF3E0; border: 1px solid #FFE0B2; color: #E65100; padding: 10px; border-radius: 8px; margin-bottom: 12px; font-size: 12px; text-align: center; font-weight: bold; cursor: pointer; }
-
 /* GRID KATEGORI 2 KOLOM */
 .kat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
 .kat-card { border-radius: 8px; padding: 12px 10px; text-align: center; border: 1px solid; cursor: pointer; transition: transform 0.1s; display: flex; flex-direction: column; justify-content: space-between; min-height: 85px; box-sizing: border-box; }
@@ -135,7 +132,7 @@ input, select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radiu
 <div class="header no-print">
   <img src="./logokasrtqr4.jpg" alt="Logo Kas RT" class="app-logo" onerror="this.style.display='none'">
   <h2 id="judulApp" style="margin:0;">Kas RT Mobile</h2>
-  <div id="headerVersionInfo" class="header-version">Versi 1.2.0</div>
+  <div id="headerVersionInfo" class="header-version">Versi 1.2.1</div>
   <div id="brandingFooter" style="font-size: 11px; color: #777; font-weight: bold; margin-top: 3px; letter-spacing: 0.5px; cursor: pointer;" onclick="window.location.href=window.location.pathname">Powered By Ari GPM</div>
 </div>
 
@@ -171,8 +168,6 @@ input, select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radiu
 
 <!-- VIEW 4: DASHBOARD -->
 <div id="viewDashboard" class="app-view no-print" style="display:none;">
-  <div id="bannerOfflineSync" onclick="sinkronkanDataOffline()">⏳ Ada <span id="cntQueue">0</span> transaksi tersimpan offline. Klik untuk Sinkronkan Server Sekarang.</div>
-
   <div style="background: #E8F5E9; padding: 8px 12px; border-radius: 8px; margin-bottom: 12px; font-size: 12px; color: #2E7D32; display: flex; justify-content: space-between; align-items: center;">
     <span>Akun: <b id="lblAkunAktif">-</b></span>
     <button onclick="prosesLogout()" style="background: #C62828; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer;">Keluar</button>
@@ -375,8 +370,6 @@ window.addEventListener('DOMContentLoaded', () => {
   const savedAdminEmail = localStorage.getItem('kas_rt_admin_email');
   const savedLastView = localStorage.getItem('kas_rt_last_view');
 
-  updateIndikatorOffline();
-
   if (urlParams.get('mode') === 'publik') {
     isPublicMode = true;
     document.querySelectorAll('.id-admin-only').forEach(el => el.style.display = 'none');
@@ -414,25 +407,10 @@ window.addEventListener('DOMContentLoaded', () => {
   }
 });
 
-// EVENT LISTENER OTOMATIS: SINKRONISASI SAAT KONEKSI INTERNET KEMBALI
+// SINKRONISASI SILUMAN SAAT KONEKSI TERSEDIA KEMBALI
 window.addEventListener('online', () => {
-  updateIndikatorOffline();
   sinkronkanDataOffline();
 });
-
-function updateIndikatorOffline() {
-  let queue = JSON.parse(localStorage.getItem('kas_rt_offline_queue') || '[]');
-  let banner = document.getElementById('bannerOfflineSync');
-  let cnt = document.getElementById('cntQueue');
-  if (banner && cnt) {
-    if (queue.length > 0) {
-      cnt.innerText = queue.length;
-      banner.style.display = 'block';
-    } else {
-      banner.style.display = 'none';
-    }
-  }
-}
 
 function simpanLokalOffline(fnName, payload) {
   let queue = JSON.parse(localStorage.getItem('kas_rt_offline_queue') || '[]');
@@ -450,18 +428,16 @@ function simpanLokalOffline(fnName, payload) {
   
   renderDashboard();
   tutupForm();
-  updateIndikatorOffline();
-  tampilNotifikasi("Sinyal terputus/offline. Transaksi berhasil disimpan lokal di HP dan akan otomatis disinkronkan saat ada internet!", "Tersimpan Lokal Offline");
+  tampilNotifikasi("Transaksi Berhasil Disimpan!");
 }
 
 function sinkronkanDataOffline() {
   let queue = JSON.parse(localStorage.getItem('kas_rt_offline_queue') || '[]');
   if (queue.length === 0 || !navigator.onLine) return;
 
-  tampilkanLoader("Sinyal kembali! Menyinkronkan " + queue.length + " transaksi offline ke database...");
   let item = queue[0];
-
   let fullUrl = SCRIPT_URL + "?mode=api&fn=" + item.fn + "&data=" + encodeURIComponent(JSON.stringify(item.param));
+  
   fetch(fullUrl)
     .then(res => res.json())
     .then(data => {
@@ -471,15 +447,18 @@ function sinkronkanDataOffline() {
       if (queue.length > 0) {
         sinkronkanDataOffline();
       } else {
-        loadAppData();
-        updateIndikatorOffline();
-        tampilNotifikasi("Semua transaksi offline berhasil terkirim dan disinkronkan ke database server secara akurat!", "Auto-Sync Sukses");
+        fetch(SCRIPT_URL + "?mode=api&fn=getAppData")
+          .then(r => r.json())
+          .then(d => {
+            if(d && typeof d === 'object' && !d.error) {
+              globalData = d;
+              localStorage.setItem('kas_rt_data', JSON.stringify(d));
+              renderDashboard();
+            }
+          }).catch(()=>{});
       }
     })
-    .catch(err => {
-      sembunyikanLoader();
-      updateIndikatorOffline();
-    });
+    .catch(err => {});
 }
 
 function tampilkanLoader(teks) {
@@ -609,9 +588,8 @@ function prosesLogin() {
       let cached = localStorage.getItem('kas_rt_data');
       if (cached) globalData = JSON.parse(cached);
       gantiView('dashboard');
-      tampilNotifikasi("Berhasil masuk dalam Mode Offline (Mode Pesawat).", "Mode Offline");
     } else {
-      tampilNotifikasi("Gagal Login Offline: Email/PIN tidak cocok atau belum pernah login online sebelumnya di HP ini.", "Mode Offline");
+      tampilNotifikasi("Gagal Login Offline: Email/PIN tidak cocok atau belum pernah login online sebelumnya.");
     }
     return;
   }
@@ -753,17 +731,15 @@ function submitTransaksi(e) {
 
   let actionName = currentEditTrxId ? 'updateTransaksi' : 'simpanTransaksi';
 
-  // JIKA SEDANG OFFLINE / SINYAL PUTUS
   if (!navigator.onLine) {
     simpanLokalOffline(actionName, trx);
     return;
   }
 
-  // JIKA ONLINE
   callServer(actionName, trx, d => { 
     if(d) globalData = d; 
     renderDashboard(); tutupForm(); 
-    tampilNotifikasi("Transaksi Berhasil Disimpan ke Server!"); 
+    tampilNotifikasi("Transaksi Berhasil Disimpan!"); 
   });
 }
 
