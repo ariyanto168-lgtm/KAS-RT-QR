@@ -12,7 +12,8 @@
 
 <style>
 body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f0f2f5; margin: 0; padding: 15px; }
-.header { text-align: center; color: #2E7D32; margin-bottom: 15px; }
+.header { text-align: center; color: #2E7D32; margin-bottom: 15px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.app-logo { width: 55px; height: 55px; border-radius: 50%; object-fit: cover; margin-bottom: 6px; box-shadow: 0 2px 6px rgba(0,0,0,0.15); border: 2px solid #2E7D32; }
 .header-version { font-size: 11px; color: #666; font-weight: bold; margin-top: 2px; letter-spacing: 1px; }
 .card { background: white; padding: 15px; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 15px; }
 .saldo-box { text-align: center; background: #E3F2FD; border: 1px solid #BBDEFB; }
@@ -129,8 +130,9 @@ input, select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radiu
 </div>
 
 <div class="header no-print">
-  <h2 id="judulApp">Kas RT Mobile</h2>
-  <div id="headerVersionInfo" class="header-version">Versi 1.1.7</div>
+  <img src="./logokasrtqr4.jpg" alt="Logo Kas RT" class="app-logo" onerror="this.style.display='none'">
+  <h2 id="judulApp" style="margin:0;">Kas RT Mobile</h2>
+  <div id="headerVersionInfo" class="header-version">Versi 1.1.8</div>
   <div id="brandingFooter" style="font-size: 11px; color: #777; font-weight: bold; margin-top: 3px; letter-spacing: 0.5px; cursor: pointer;" onclick="window.location.href=window.location.pathname">Powered By Ari GPM</div>
 </div>
 
@@ -168,7 +170,7 @@ input, select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radiu
 <div id="viewDashboard" class="app-view no-print" style="display:none;">
   <div style="background: #E8F5E9; padding: 8px 12px; border-radius: 8px; margin-bottom: 12px; font-size: 12px; color: #2E7D32; display: flex; justify-content: space-between; align-items: center;">
     <span>Akun: <b id="lblAkunAktif">-</b></span>
-    <button onclick="location.reload()" style="background: #C62828; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer;">Keluar</button>
+    <button onclick="prosesLogout()" style="background: #C62828; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer;">Keluar</button>
   </div>
   
   <div class="flex-container card" style="padding: 10px;">
@@ -346,6 +348,17 @@ let isPublicMode = false;
 let currentEditTrxId = null;
 let singlePrintNo = null;
 
+// KEAMANAN: SANITASI STRING UNTUK MENCEGAH XSS
+function escapeHTML(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
 // BACA CACHE LOCAL STORAGE PERTAMA KALI SUPAYA CEPAT SAAT SINYAL MINIM
 try {
   let localCache = localStorage.getItem('kas_rt_data');
@@ -354,17 +367,19 @@ try {
   }
 } catch(e) {}
 
-// DETEKSI MODE PUBLIK TRANPARANSI DARI URL
+// DETEKSI SIKLUS PERSISTENSI & MODE PUBLIK / ADMIN (ANTI REFRESH)
 window.addEventListener('DOMContentLoaded', () => {
   const urlParams = new URLSearchParams(window.location.search);
+  const savedAdminEmail = localStorage.getItem('kas_rt_admin_email');
+  const savedLastView = localStorage.getItem('kas_rt_last_view');
+
   if (urlParams.get('mode') === 'publik') {
     isPublicMode = true;
     document.querySelectorAll('.id-admin-only').forEach(el => el.style.display = 'none');
     document.querySelectorAll('.id-public-only').forEach(el => el.style.display = 'block');
     
-    // Tampilkan data lokal dulu jika ada
     if (globalData && globalData.riwayat && globalData.riwayat.length > 0) {
-      gantiView('laporan');
+      gantiView(savedLastView && savedLastView !== 'login' ? savedLastView : 'laporan');
     }
     
     callServer("getAppData", null, function(data) {
@@ -372,8 +387,22 @@ window.addEventListener('DOMContentLoaded', () => {
         globalData = data;
         localStorage.setItem('kas_rt_data', JSON.stringify(data));
       }
-      gantiView('laporan');
+      gantiView(savedLastView && savedLastView !== 'login' ? savedLastView : 'laporan');
     });
+  } else if (savedAdminEmail) {
+    // ADMIN SESEI TERJAGA (ANTI-REFRESH)
+    currentUserEmail = savedAdminEmail;
+    document.getElementById('lblAkunAktif').innerText = escapeHTML(savedAdminEmail);
+    
+    callServer("getAppData", null, function(data) {
+      if(data) {
+        globalData = data;
+        localStorage.setItem('kas_rt_data', JSON.stringify(data));
+      }
+      gantiView(savedLastView && savedLastView !== 'login' ? savedLastView : 'dashboard');
+    });
+  } else {
+    gantiView('login');
   }
 });
 
@@ -384,8 +413,8 @@ function tampilkanLoader(teks) {
 function sembunyikanLoader() { document.getElementById('loaderOverlay').style.display = 'none'; }
 
 function tampilNotifikasi(pesan, judul = "Informasi", config = {}) {
-  document.getElementById('modalHeaderTitle').innerText = judul;
-  document.getElementById('modalBodyMessage').innerText = pesan;
+  document.getElementById('modalHeaderTitle').innerText = escapeHTML(judul);
+  document.getElementById('modalBodyMessage').innerText = escapeHTML(pesan);
   
   let inputCont = document.getElementById('modalInputContainer');
   let btnBatal = document.getElementById('modalBtnBatal');
@@ -440,6 +469,9 @@ function gantiView(namaView) {
     if (targetEl) targetEl.style.display = 'block';
     else document.getElementById('viewDashboard').style.display = 'block';
 
+    // Anti Refresh: Simpan posisi tampilan aktif ke localStorage
+    localStorage.setItem('kas_rt_last_view', namaView);
+
     if(namaView === 'dashboard') renderDashboard();
     else if(namaView === 'warga') renderWarga();
     else if(namaView === 'laporan') renderLaporan();
@@ -482,17 +514,24 @@ function callServer(funcName, param, callback) {
 }
 
 function prosesLogin() {
-  let email = document.getElementById('inputLoginEmail').value;
-  let pin = document.getElementById('inputLoginPin').value;
+  let email = document.getElementById('inputLoginEmail').value.trim();
+  let pin = document.getElementById('inputLoginPin').value.trim();
   if(!email || !pin) return tampilNotifikasi("Email dan PIN wajib diisi!");
   
   callServer("cekLogin", {email: email, pin: pin}, function(res) {
     if(res && res.success) {
       currentUserEmail = email;
-      document.getElementById('lblAkunAktif').innerText = email;
+      localStorage.setItem('kas_rt_admin_email', email);
+      document.getElementById('lblAkunAktif').innerText = escapeHTML(email);
       loadAppData();
     } else { tampilNotifikasi("Gagal: Email atau PIN salah!"); }
   });
+}
+
+function prosesLogout() {
+  localStorage.removeItem('kas_rt_admin_email');
+  localStorage.removeItem('kas_rt_last_view');
+  location.reload();
 }
 
 function loadAppData() {
@@ -533,7 +572,7 @@ function renderDashboard() {
   let listHtml = "";
   if(globalData.riwayat && globalData.riwayat.length > 0) {
     globalData.riwayat.slice(-5).reverse().forEach(r => {
-      listHtml += `<div class="trx-item"><b>${r.tanggal}</b> - [${r.kategori}] ${r.noRumah} (${r.warga})<br>${r.uraian}: <b>Rp ${(r.nominalAsli||0).toLocaleString('id-ID')}</b></div>`;
+      listHtml += `<div class="trx-item"><b>${escapeHTML(r.tanggal)}</b> - [${escapeHTML(r.kategori)}] ${escapeHTML(r.noRumah)} (${escapeHTML(r.warga)})<br>${escapeHTML(r.uraian)}: <b>Rp ${(r.nominalAsli||0).toLocaleString('id-ID')}</b></div>`;
     });
   }
   document.getElementById('listRiwayatPendek').innerHTML = listHtml || "Belum ada riwayat.";
@@ -541,13 +580,13 @@ function renderDashboard() {
   let selWarga = document.getElementById('opsiWarga');
   selWarga.innerHTML = `<option value="">-- Bebas / Kas Umum --</option>`;
   if(globalData.warga && Array.isArray(globalData.warga)) {
-    globalData.warga.forEach(w => selWarga.innerHTML += `<option value="${w.no}">${w.no} - ${w.nama}</option>`);
+    globalData.warga.forEach(w => selWarga.innerHTML += `<option value="${escapeHTML(w.no)}">${escapeHTML(w.no)} - ${escapeHTML(w.nama)}</option>`);
   }
 
   let selKat = document.getElementById('trxKategori');
   selKat.innerHTML = "";
   dapatkanDaftarKategoriUnik().forEach(k => {
-    selKat.innerHTML += `<option value="${k}">${k}</option>`;
+    selKat.innerHTML += `<option value="${escapeHTML(k)}">${escapeHTML(k)}</option>`;
   });
 }
 
@@ -558,9 +597,10 @@ function toggleSettingIuran() {
 
 function simpanSettingIuran() { callServer("updateSettingIuran", {nominal: document.getElementById('settingNominalIuran').value}, d => { if(d) globalData = d; tampilNotifikasi("Nominal Disimpan!"); }); }
 function prosesGantiEmailPIN() {
-  let em = document.getElementById('inputGantiEmail').value; let pn = document.getElementById('inputGantiPin').value;
+  let em = document.getElementById('inputGantiEmail').value.trim(); 
+  let pn = document.getElementById('inputGantiPin').value.trim();
   if(pn.length < 4) return tampilNotifikasi("PIN minimal 4 karakter!");
-  callServer("gantiEmailDanPINAkun", {oldEmail: currentUserEmail, newEmail: em, newPin: pn}, res => { if(res && res.success) { currentUserEmail = em; tampilNotifikasi("Akun diperbarui!"); } });
+  callServer("gantiEmailDanPINAkun", {oldEmail: currentUserEmail, newEmail: em, newPin: pn}, res => { if(res && res.success) { currentUserEmail = em; localStorage.setItem('kas_rt_admin_email', em); tampilNotifikasi("Akun diperbarui!"); } });
 }
 
 function konfirmasiResetData() {
@@ -667,7 +707,7 @@ function tampilProfilWarga(no) {
   document.getElementById('profQrImg').src = "https://quickchart.io/qr?text=" + encodeURIComponent(w.no) + "&size=150";
 
   let listBulan = dapatkanDaftarBulanIuran(no);
-  document.getElementById('profDaftarBulan').innerHTML = listBulan.length > 0 ? listBulan.map(b => `<span style="display:inline-block; background:#E8F5E9; color:#2E7D32; padding:3px 6px; border-radius:4px; margin:2px; font-weight:bold;">✓ ${b}</span>`).join(' ') : "<span style='color:#C62828;'>Belum bayar iuran sama sekali.</span>";
+  document.getElementById('profDaftarBulan').innerHTML = listBulan.length > 0 ? listBulan.map(b => `<span style="display:inline-block; background:#E8F5E9; color:#2E7D32; padding:3px 6px; border-radius:4px; margin:2px; font-weight:bold;">✓ ${escapeHTML(b)}</span>`).join(' ') : "<span style='color:#C62828;'>Belum bayar iuran sama sekali.</span>";
 
   let curMonth = new Date().toISOString().slice(0,7);
   let isPaid = globalData.riwayat ? globalData.riwayat.some(r => r.noRumah.toString() === no.toString() && r.tanggal.startsWith(curMonth)) : false;
@@ -678,7 +718,7 @@ function tampilProfilWarga(no) {
 
   let histHtml = "";
   if(globalData.riwayat) {
-    globalData.riwayat.filter(r => r.noRumah.toString() === no.toString()).slice(-5).reverse().forEach(r => { histHtml += `<li><span>${r.tanggal} - ${r.kategori}</span> <b>Rp ${(r.nominalAsli||0).toLocaleString('id-ID')}</b></li>`; });
+    globalData.riwayat.filter(r => r.noRumah.toString() === no.toString()).slice(-5).reverse().forEach(r => { histHtml += `<li><span>${escapeHTML(r.tanggal)} - ${escapeHTML(r.kategori)}</span> <b>Rp ${(r.nominalAsli||0).toLocaleString('id-ID')}</b></li>`; });
   }
   document.getElementById('profRiwayat').innerHTML = histHtml || "<li>Belum ada riwayat transaksi.</li>";
   gantiView('profilScan');
@@ -814,7 +854,7 @@ function downloadBackupGoogleSheet() {
   }
 
   let blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-  link = document.createElement("a");
+  let link = document.createElement("a");
   let url = URL.createObjectURL(blob);
   link.setAttribute("href", url);
   link.setAttribute("download", `Backup_Kas_RT_${tglStr}.csv`);
@@ -836,7 +876,7 @@ function filterWargaLaporan() {
     let filtered = globalData.warga.filter(w => w.nama.toLowerCase().includes(q) || w.no.toString().toLowerCase().includes(q));
     if (filtered.length > 0) {
       filtered.forEach(w => {
-        h += `<div style="padding:8px 10px; border-bottom:1px solid #eee; cursor:pointer; font-size:12px; font-weight:bold; color:#1565C0;" onclick="tampilProfilWarga('${w.no}')">🏠 No. ${w.no} - ${w.nama}</div>`;
+        h += `<div style="padding:8px 10px; border-bottom:1px solid #eee; cursor:pointer; font-size:12px; font-weight:bold; color:#1565C0;" onclick="tampilProfilWarga('${escapeHTML(w.no)}')">🏠 No. ${escapeHTML(w.no)} - ${escapeHTML(w.nama)}</div>`;
       });
     } else {
       h = `<div style="padding:8px; color:#888; font-size:11px;">Nama/No Rumah tidak ditemukan.</div>`;
@@ -891,15 +931,15 @@ function renderLaporan() {
     let displayTotal = (katMasuk[k] || 0) > 0 ? katMasuk[k] : ((katKeluar[k] || 0) > 0 ? katKeluar[k] : 0);
     let catId = "det-kat-" + k.replace(/\s+/g, '-');
     let col = colorPalette[idx % colorPalette.length];
-    let btnEditKat = isPublicMode ? "" : `<button class="btn-aksi-sm btn-edit-sm" onclick="event.stopPropagation(); bukaModalEditKategori('${k}')" style="padding:1px 5px; font-size:9px; margin-top:3px;">✏️ Edit</button>`;
+    let btnEditKat = isPublicMode ? "" : `<button class="btn-aksi-sm btn-edit-sm" onclick="event.stopPropagation(); bukaModalEditKategori('${escapeHTML(k)}')" style="padding:1px 5px; font-size:9px; margin-top:3px;">✏️ Edit</button>`;
     
     h += `<div class="kat-card" style="background:${col.bg}; border-color:${col.border}; color:${col.text};" onclick="toggleKategori('${catId}')">
-            <div style="font-weight:bold; font-size:13px; line-height:1.2;">${k}</div>
+            <div style="font-weight:bold; font-size:13px; line-height:1.2;">${escapeHTML(k)}</div>
             <div>${btnEditKat}</div>
             <div style="font-weight:bold; font-size:14px; margin-top:5px;">Rp ${displayTotal.toLocaleString('id-ID')}</div>
           </div>
           <div id="${catId}" class="kat-detail-box" style="display:none;">
-            <div style="font-weight:bold; color:${col.text}; margin-bottom:8px; border-bottom:1px solid #eee; padding-bottom:4px; font-size:13px;">Rincian Transaksi: ${k}</div>`;
+            <div style="font-weight:bold; color:${col.text}; margin-bottom:8px; border-bottom:1px solid #eee; padding-bottom:4px; font-size:13px;">Rincian Transaksi: ${escapeHTML(k)}</div>`;
 
     if(k.toLowerCase().includes("iuran bulanan") || k.toLowerCase().includes("bulanan")) {
       h += `<div style="margin-bottom:12px; background:#fff; padding:10px; border-radius:8px; border:1px solid #C8E6C9;">
@@ -916,16 +956,16 @@ function renderLaporan() {
         let color = r.jenis === 'Masuk' ? '#2E7D32' : '#C62828';
         let btnAdmin = isPublicMode ? "" : `
           <div style="margin-top:6px; text-align:right;">
-            <button class="btn-aksi-sm btn-edit-sm" onclick="bukaFormEditTrx('${r.baris}')">Edit</button>
-            <button class="btn-aksi-sm btn-del-sm" onclick="hapusTrx('${r.baris}')">Hapus</button>
+            <button class="btn-aksi-sm btn-edit-sm" onclick="bukaFormEditTrx('${escapeHTML(r.baris)}')">Edit</button>
+            <button class="btn-aksi-sm btn-del-sm" onclick="hapusTrx('${escapeHTML(r.baris)}')">Hapus</button>
           </div>
         `;
         h += `<div style="padding:8px 0; border-bottom:1px dashed #ddd; text-align:left;">
                 <div style="display:flex; justify-content:space-between;">
-                  <span><b>${r.tanggal}</b> ${r.warga ? `(${r.warga})` : ''}</span>
+                  <span><b>${escapeHTML(r.tanggal)}</b> ${r.warga ? `(${escapeHTML(r.warga)})` : ''}</span>
                   <span style="color:${color}; font-weight:bold;">Rp ${(r.nominalAsli||0).toLocaleString('id-ID')}</span>
                 </div>
-                ${r.uraian ? `<div style="color:#666; margin-top:3px;">Ket: ${r.uraian}</div>` : ''}
+                ${r.uraian ? `<div style="color:#666; margin-top:3px;">Ket: ${escapeHTML(r.uraian)}</div>` : ''}
                 ${btnAdmin}
               </div>`; 
       });
@@ -976,14 +1016,14 @@ function renderWarga() {
   if(globalData.warga) {
     globalData.warga.forEach(w => {
       let listBulan = dapatkanDaftarBulanIuran(w.no);
-      let statusBayar = listBulan.length > 0 ? `<span style="color:#2E7D32; font-weight:bold;">Lunas s/d ${listBulan[listBulan.length - 1]}</span>` : `<span style="color:#C62828;">Belum Bayar</span>`;
+      let statusBayar = listBulan.length > 0 ? `<span style="color:#2E7D32; font-weight:bold;">Lunas s/d ${escapeHTML(listBulan[listBulan.length - 1])}</span>` : `<span style="color:#C62828;">Belum Bayar</span>`;
       h += `<tr>
-              <td onclick="tampilProfilWarga('${w.no}')" style="cursor:pointer; word-wrap:break-word;"><b>${w.no}</b><br><span style="color:#555;">${w.nama}</span></td>
-              <td onclick="tampilProfilWarga('${w.no}')" style="cursor:pointer; font-size:11px;">${statusBayar}</td>
+              <td onclick="tampilProfilWarga('${escapeHTML(w.no)}')" style="cursor:pointer; word-wrap:break-word;"><b>${escapeHTML(w.no)}</b><br><span style="color:#555;">${escapeHTML(w.nama)}</span></td>
+              <td onclick="tampilProfilWarga('${escapeHTML(w.no)}')" style="cursor:pointer; font-size:11px;">${statusBayar}</td>
               <td>
-                <div><button class="btn-aksi-sm btn-qr-sm" onclick="tampilProfilWarga('${w.no}')">QR</button></div>
-                <div><button class="btn-aksi-sm btn-edit-sm" onclick="bukaModalEditWarga('${w.no}', '${w.nama}')">Edit</button></div>
-                <div><button class="btn-aksi-sm btn-del-sm" onclick="konfirmasiHapusWarga('${w.no}')">Hapus</button></div>
+                <div><button class="btn-aksi-sm btn-qr-sm" onclick="tampilProfilWarga('${escapeHTML(w.no)}')">QR</button></div>
+                <div><button class="btn-aksi-sm btn-edit-sm" onclick="bukaModalEditWarga('${escapeHTML(w.no)}', '${escapeHTML(w.nama)}')">Edit</button></div>
+                <div><button class="btn-aksi-sm btn-del-sm" onclick="konfirmasiHapusWarga('${escapeHTML(w.no)}')">Hapus</button></div>
               </td>
             </tr>`;
     });
@@ -1020,18 +1060,18 @@ function konfirmasiHapusWarga(no) {
 function renderRekapLengkap() {
   let h = "";
   if(globalData.riwayat && globalData.riwayat.length > 0) {
-    globalData.riwayat.slice().reverse().forEach(r => { h += `<div class="trx-item"><b>${r.tanggal}</b> - [${r.kategori}] ${r.noRumah} (${r.warga})<br>${r.uraian}: <b>Rp ${(r.nominalAsli||0).toLocaleString('id-ID')}</b></div>`; });
+    globalData.riwayat.slice().reverse().forEach(r => { h += `<div class="trx-item"><b>${escapeHTML(r.tanggal)}</b> - [${escapeHTML(r.kategori)}] ${escapeHTML(r.noRumah)} (${escapeHTML(r.warga)})<br>${escapeHTML(r.uraian)}: <b>Rp ${(r.nominalAsli||0).toLocaleString('id-ID')}</b></div>`; });
   }
   document.getElementById('listRiwayatLengkap').innerHTML = h || "Tidak ada data.";
 }
 
 function renderScanManualList() {
-  let h = ""; if(globalData.warga) { globalData.warga.forEach(w => h += `<div style="padding:10px;border-bottom:1px solid #eee; cursor:pointer;" onclick="tampilProfilWarga('${w.no}')"><b>${w.no}</b> - ${w.nama}</div>`); }
+  let h = ""; if(globalData.warga) { globalData.warga.forEach(w => h += `<div style="padding:10px;border-bottom:1px solid #eee; cursor:pointer;" onclick="tampilProfilWarga('${escapeHTML(w.no)}')"><b>${escapeHTML(w.no)}</b> - ${escapeHTML(w.nama)}</div>`); }
   document.getElementById('hasilCariManual').innerHTML = h;
 }
 function filterCariManual() {
   let q = document.getElementById('inputCariManual').value.toLowerCase(); let h = "";
-  if(globalData.warga) { globalData.warga.filter(w => w.nama.toLowerCase().includes(q) || w.no.toLowerCase().includes(q)).forEach(w => { h += `<div style="padding:10px;border-bottom:1px solid #eee; cursor:pointer;" onclick="tampilProfilWarga('${w.no}')"><b>${w.no}</b> - ${w.nama}</div>`; }); }
+  if(globalData.warga) { globalData.warga.filter(w => w.nama.toLowerCase().includes(q) || w.no.toLowerCase().includes(q)).forEach(w => { h += `<div style="padding:10px;border-bottom:1px solid #eee; cursor:pointer;" onclick="tampilProfilWarga('${escapeHTML(w.no)}')"><b>${escapeHTML(w.no)}</b> - ${escapeHTML(w.nama)}</div>`; }); }
   document.getElementById('hasilCariManual').innerHTML = h;
 }
 
@@ -1047,8 +1087,8 @@ function renderCetakQR(targetNo = null) {
     listWarga.forEach(w => {
       let qrUrl = "https://quickchart.io/qr?text=" + encodeURIComponent(w.no) + "&size=150";
       h += `<div class="cetak-card">
-              <div class="c-nama">${w.nama}</div>
-              <div class="c-no">No. ${w.no}</div>
+              <div class="c-nama">${escapeHTML(w.nama)}</div>
+              <div class="c-no">No. ${escapeHTML(w.no)}</div>
               <img src="${qrUrl}" alt="QR">
               <div style="font-size:9px; margin-top:2px;">Scan untuk Cek Kas</div>
               <div class="c-batas">- - - - - - - - - - - - - - - - - - -</div>
