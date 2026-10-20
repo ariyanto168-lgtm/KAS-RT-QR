@@ -1,4 +1,4 @@
-const CACHE_NAME = "kas-rt-qr-v1.2.1";
+const CACHE_NAME = "kas-rt-qr-v1.2.3";
 const urlsToCache = [
   "./",
   "./index.html",
